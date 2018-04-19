@@ -21,7 +21,7 @@
             android:layout_height="434dp"
             android:layout_marginBottom="100dp"
             android:contentDescription="Logo"
-            app:srcCompat="@drawable/Logo_Frackwoche_2018_HG_weiss_300dpi_sq" />
+            app:srcCompat="@drawable/logo_frackwoche_2018" />
 
     </LinearLayout>
 
