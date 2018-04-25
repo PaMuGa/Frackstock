@@ -20,7 +20,29 @@ static uint8_t m_sample;
 static LIS3DE_REGISTER_t last_read_register;
 static uint8_t init_finished = 0;
 
-data_handler_t p_data_handler;
+static data_handler_t p_data_handler;
+static xyz_data_handler_t p_xyz_data_handler;
+
+static const uint8_t CONFIG_DATA[] = {0x5F, 0x00, 0x10, 0x00, 0x00, 0x00};
+
+// REG1: 100Hz, Lowpower mode, XYZ enabled
+// REG2: No filter enabled
+// REG3: Data ready interrupt on int1
+// REG4: +- 2g
+// REG5: default
+// REG6: default
+
+typedef enum {
+	IDLE,
+	WAIT_X,
+	WAIT_Y,
+	WAIT_Z
+} READ_XYZ_t;
+
+READ_XYZ_t read_xyz_state = IDLE;
+
+static lis3de_xyz_acc_data_t acc_data_xyz;
+
 
 /**
  * @brief TWI events handler.
@@ -35,7 +57,10 @@ void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
 				if(last_read_register == LIS3DE_REG_WHO_AM_I)
 				{
 					if(m_sample == WHO_AM_I_DEFAULT)
+					{
+						nrf_drv_twi_tx(&m_twi, LIS3DE_REG_CTRL_REG1, CONFIG_DATA, sizeof(CONFIG_DATA), false);
 						init_finished = 1;
+					}
 				}
 				else
 				{
@@ -101,6 +126,48 @@ int lis3de_read_async(LIS3DE_REGISTER_t lis3de_register, data_handler_t data_han
 		NRF_LOG_INFO("LIS3DE connection not (correct) initialized.");
 		return 1;
 	}
+}
+
+void lis3de_xyz_data_handler(LIS3DE_REGISTER_t lis3de_register, uint8_t data)
+{
+	switch(lis3de_register)
+	{
+		case LIS3DE_REG_OUT_X:
+			acc_data_xyz.acc_x = data;
+			read_xyz_state = WAIT_Y;
+			lis3de_read_async(LIS3DE_REG_OUT_Y, lis3de_xyz_data_handler);
+			break;
+		case LIS3DE_REG_OUT_Y:
+			acc_data_xyz.acc_y = data;
+			read_xyz_state = WAIT_Z;
+			lis3de_read_async(LIS3DE_REG_OUT_Z, lis3de_xyz_data_handler);
+			break;
+		case LIS3DE_REG_OUT_Z:
+			acc_data_xyz.acc_z = data;
+			read_xyz_state = IDLE;
+			if(p_xyz_data_handler != NULL)
+			{
+				p_xyz_data_handler(acc_data_xyz);
+			}
+			break;
+		default:
+			break;
+	}
+}
+
+int lis3de_read_XYZ_async(xyz_data_handler_t xyz_data_handler)
+{
+	if(init_finished != 1)
+		return 1;
+	
+	if(read_xyz_state == IDLE)
+	{
+		p_xyz_data_handler = xyz_data_handler;
+		read_xyz_state = WAIT_X;
+		lis3de_read_async(LIS3DE_REG_OUT_X, lis3de_xyz_data_handler);
+		return 0;
+	}
+	return 2;
 }
 
 

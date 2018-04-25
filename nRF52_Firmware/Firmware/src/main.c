@@ -18,6 +18,7 @@
 void gyro_data_handler(LIS3DE_REGISTER_t, uint8_t);
 void ble_data_received_handler(const uint8_t *p_data, uint8_t length);
 void ble_adv_timeout_handler(void);
+void acc_xyz_data_handler(lis3de_xyz_acc_data_t acc_data);
 
 static void log_init(void)
 {
@@ -38,19 +39,22 @@ int main()
 	//uint8_t u8_charge;
 	// app started by nfc or gyro?
 	
+	// init log
+	log_init();
+	NRF_LOG_INFO("Startup...");
+	
+	// init modules
+	lis3de_init();
 	nfc_init_app_start();
 	leds_init();
 	stns01_init();
-	
-	// 
-	
-	//SEGGER_RTT_WriteString(0, "Startup...\n");
-	
-	log_init();
-	NRF_LOG_INFO("Startup...");
-	//NRF_LOG_FLUSH();
-	
 	bluetooth_init(&ble_data_received_handler, &ble_adv_timeout_handler);
+	
+	// wait until initialization finished
+	nrf_delay_ms(10);
+	
+	//lis3de_read_XYZ_async(acc_xyz_data_handler);
+	
 	while(1)
 	{
 		UNUSED_RETURN_VALUE(NRF_LOG_PROCESS());
@@ -75,13 +79,13 @@ int main()
 //	
 //	
 //	
-	while(1)
-	{
+//	while(1)
+//	{
 //		lis3de_read_async(LIS3DE_REG_STATUS_REG2, &gyro_data_handler);
 //		//stns01_get_charge_async(&battery_charge_measured);
 //		//u8_charge = stns01_get_charge();
-		nrf_delay_ms(100);
-	}
+//		nrf_delay_ms(100);
+//	}
 	
 }
 
@@ -110,6 +114,11 @@ void gyro_data_handler(LIS3DE_REGISTER_t lis3de_register, uint8_t data)
 		default:
 			break;
 	}
+}
+
+void acc_xyz_data_handler(lis3de_xyz_acc_data_t acc_data)
+{
+	
 }
 
 
