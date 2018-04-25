@@ -1,5 +1,3 @@
-
-
 #include "leds.h"
 #include "nfc.h"
 #include "lis3de.h"
@@ -10,6 +8,9 @@
 #include "nrf_sdh_soc.h"
 #include "nrf_sdh_ble.h"
 #include "SEGGER_RTT.h"
+#include "nrf_drv_gpiote.h"
+
+#include "custom_board.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -53,7 +54,6 @@ int main()
 	// wait until initialization finished
 	nrf_delay_ms(10);
 	
-	//lis3de_read_XYZ_async(acc_xyz_data_handler);
 	
 	while(1)
 	{
@@ -118,7 +118,21 @@ void gyro_data_handler(LIS3DE_REGISTER_t lis3de_register, uint8_t data)
 
 void acc_xyz_data_handler(lis3de_xyz_acc_data_t acc_data)
 {
-	
+	// filter data
 }
 
+void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+{
+	// start data readout
+    lis3de_read_XYZ_async(acc_xyz_data_handler);
+}
+
+void init_lis3de_data_interrupt(void)
+{
+	nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_TOGGLE(true);
+    in_config.pull = NRF_GPIO_PIN_PULLUP;
+
+    nrf_drv_gpiote_in_init(PIN_INT1, &in_config, in_pin_handler);
+    nrf_drv_gpiote_in_event_enable(PIN_INT1, true);
+}
 
