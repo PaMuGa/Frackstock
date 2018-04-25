@@ -116,9 +116,39 @@ void gyro_data_handler(LIS3DE_REGISTER_t lis3de_register, uint8_t data)
 	}
 }
 
+#define ACC_DATA_FIR_FILTER_LENGTH	4	// fs = 100Hz
+
+static lis3de_xyz_acc_data_t lis3de_xyz_acc_data_fir_buffer[ACC_DATA_FIR_FILTER_LENGTH - 1];
+static uint8_t u8_filter_buffer_index_counter = 0;
+
 void acc_xyz_data_handler(lis3de_xyz_acc_data_t acc_data)
 {
 	// filter data
+	lis3de_xyz_acc_data_t acc_filtered = acc_data;
+	
+	for(uint8_t i = 0; i < ACC_DATA_FIR_FILTER_LENGTH - 1; i++)
+	{
+		acc_filtered.acc_x += lis3de_xyz_acc_data_fir_buffer[i].acc_x;
+		acc_filtered.acc_y += lis3de_xyz_acc_data_fir_buffer[i].acc_y;
+		acc_filtered.acc_z += lis3de_xyz_acc_data_fir_buffer[i].acc_z;
+	}
+	
+	lis3de_xyz_acc_data_fir_buffer[u8_filter_buffer_index_counter] = acc_data;
+	u8_filter_buffer_index_counter++;
+	u8_filter_buffer_index_counter %= ACC_DATA_FIR_FILTER_LENGTH - 1;
+	
+	acc_filtered.acc_x /= ACC_DATA_FIR_FILTER_LENGTH;
+	acc_filtered.acc_y /= ACC_DATA_FIR_FILTER_LENGTH;
+	acc_filtered.acc_z /= ACC_DATA_FIR_FILTER_LENGTH;
+	
+	// send data over ble
+	
+	uint8_t checksum = acc_filtered.acc_x + acc_filtered.acc_y + acc_filtered.acc_z + 0x10;
+	
+	// SOH | data length | STX | 4 byte data (acc data) | ETX | checksum | EOT
+	uint8_t send_buffer[] = {0x01, 0x04, 0x02, 0x10, acc_filtered.acc_x, acc_filtered.acc_y, acc_filtered.acc_z, 0x03, checksum, 0x04};
+	
+	bluetooth_send(send_buffer, sizeof(send_buffer));
 }
 
 void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
