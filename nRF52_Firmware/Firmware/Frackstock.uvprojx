@@ -310,7 +310,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>0</Optim>
+            <Optim>1</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -411,6 +411,16 @@
               <FileName>stns01.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\stns01.c</FilePath>
+            </File>
+            <File>
+              <FileName>patterncontrol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\patterncontrol.c</FilePath>
+            </File>
+            <File>
+              <FileName>custom_board.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\inc\custom_board.h</FilePath>
             </File>
           </Files>
         </Group>

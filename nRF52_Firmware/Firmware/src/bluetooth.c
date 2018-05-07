@@ -54,6 +54,7 @@ static ble_uuid_t m_adv_uuids[]          =                      // UUID
 
 ble_data_received_handler_t p_data_received_handler = NULL;
 ble_adv_timeout_handler_t p_adv_timeout_handler = NULL;
+ble_connection_handler_t p_connection_handler = NULL;
 
 
 static void gap_params_init(void);
@@ -67,12 +68,14 @@ static void advertising_init(void);
 //NRF_SDH_BLE_OBSERVER(m_ble_observer, BSP_BTN_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
 
 void bluetooth_init(ble_data_received_handler_t data_received_handler,
-					ble_adv_timeout_handler_t adv_timeout_handler)
+					ble_adv_timeout_handler_t adv_timeout_handler,
+					ble_connection_handler_t connection_handler)
 {
 	uint32_t err_code;
 	
 	p_data_received_handler = data_received_handler;
 	p_adv_timeout_handler = adv_timeout_handler;
+	p_connection_handler = connection_handler;
 
 	err_code = app_timer_init();
     APP_ERROR_CHECK(err_code);
@@ -246,12 +249,18 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             //err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
             APP_ERROR_CHECK(err_code);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+		
+			if(p_connection_handler != NULL)
+				p_connection_handler(1);
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
             NRF_LOG_INFO("Disconnected");
             // LED indication will be changed when advertising starts.
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
+		
+			if(p_connection_handler != NULL)
+				p_connection_handler(0);
             break;
 
         case BLE_GAP_EVT_SEC_PARAMS_REQUEST:

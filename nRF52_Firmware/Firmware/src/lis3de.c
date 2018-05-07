@@ -6,6 +6,7 @@
 #include "nrf.h"
 #include "nrf_drv_twi.h"
 #include "nrf_drv_spis.h"
+#include "nrf_delay.h"
 
 #include "nrf_log.h"
 
@@ -60,6 +61,7 @@ void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
 					{
 						nrf_drv_twi_tx(&m_twi, LIS3DE_REG_CTRL_REG1, CONFIG_DATA, sizeof(CONFIG_DATA), false);
 						init_finished = 1;
+						NRF_LOG_INFO("LIS3DE initialized.");
 					}
 				}
 				else
@@ -72,6 +74,7 @@ void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
             break;
 		case NRF_DRV_TWI_EVT_ADDRESS_NACK:
 			// Keine Verbindung. Chip korrekt angelötet?
+			NRF_LOG_WARNING("LIS3DE no connection.");
 			break;
 		case NRF_DRV_TWI_EVT_DATA_NACK:
 			// Verbindung ja, ungültiges Register / Daten
@@ -103,29 +106,31 @@ void lis3de_init(void)
 {
 	twi_init();
 	
+	nrf_delay_us(10);
+	
 	last_read_register = LIS3DE_REG_WHO_AM_I;
 	m_sample = (char)last_read_register;
 	
-	nrf_drv_twi_rx(&m_twi, LIS3DE_ADDR, &m_sample, sizeof(m_sample));
+	APP_ERROR_CHECK(nrf_drv_twi_rx(&m_twi, LIS3DE_ADDR, &m_sample, sizeof(m_sample)));
 }
 
 
 int lis3de_read_async(LIS3DE_REGISTER_t lis3de_register, data_handler_t data_handler)
 {
-	if(init_finished == 1)
-	{
+	//if(init_finished == 1)
+	//{
 		m_sample = (char)lis3de_register;
 		last_read_register = lis3de_register;
 		p_data_handler = data_handler;
 	
 		nrf_drv_twi_rx(&m_twi, LIS3DE_ADDR, &m_sample, sizeof(m_sample));
 		return 0;
-	}
-	else
-	{
-		NRF_LOG_INFO("LIS3DE connection not (correct) initialized.");
-		return 1;
-	}
+//	}
+//	else
+//	{
+//		NRF_LOG_INFO("LIS3DE connection not (correct) initialized.");
+//		return 1;
+//	}
 }
 
 void lis3de_xyz_data_handler(LIS3DE_REGISTER_t lis3de_register, uint8_t data)

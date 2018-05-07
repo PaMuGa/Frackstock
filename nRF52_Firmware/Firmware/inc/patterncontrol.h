@@ -20,40 +20,28 @@
 * USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef __leds_h
-#define __leds_h
+#ifndef __patterncontrol_h
+#define __patterncontrol_h
 
 #include "nrf.h"
 
-/**
-* @brief	LED color structure
-*/
-typedef struct {
-	uint8_t u8_green;
-	uint8_t u8_red;
-	uint8_t u8_blue;
-} led_color_t;
+/// Maximum number of LEDs
+#define MAX_N_LEDS	60
+
+/// Available Patterns
+typedef enum {
+	RESET,
+	BLE_CONNECT,
+	BLE_CONNECTED
+	
+} pattern_t;
 
 /**
-* @brief	Initializes the LED control Hardware
+* @brief	Updates the LED pattern
+* @param	pattern	Visible pattern
 */
-void leds_init(void);
+void patterncontrol_update(pattern_t pattern,
+	uint8_t u8_pattern_length,
+	uint16_t *u16_control_state);
 
-/**
-* @brief	Enables the LED power supply
-*/
-void leds_activate(void);
-
-/**
-* @brief	Disables the LED power supply
-*/
-void leds_deactivate(void);
-
-/**
-* @brief	Updates the led stripe
-* @param	led_color_buffer	Array of led_color_t
-* @param	u16_length			Array length (stripe length)
-*/
-void leds_update(led_color_t* led_color_buffer, uint16_t u16_length);
-
-#endif /* __leds_h */
+#endif /* __patterncontrol_h */
