@@ -24,6 +24,7 @@ const nrf_drv_timer_t TIMER_LED = NRF_DRV_TIMER_INSTANCE(2);
 void gyro_data_handler(LIS3DE_REGISTER_t, uint8_t);
 void ble_data_received_handler(const uint8_t *p_data, uint8_t length);
 void ble_adv_timeout_handler(void);
+void ble_connection_handler(uint8_t state);
 void acc_xyz_data_handler(lis3de_xyz_acc_data_t acc_data);
 
 void system_tick_init(void);
@@ -79,7 +80,7 @@ int main()
 	nfc_init_app_start();
 	leds_init();
 	stns01_init();
-	bluetooth_init(&ble_data_received_handler, &ble_adv_timeout_handler);
+	//bluetooth_init(&ble_data_received_handler, &ble_adv_timeout_handler, &ble_connection_handler);
 	
 	application_state = ADVERTISING;
 	
@@ -103,7 +104,7 @@ int main()
 		u16_slow_process_counter++;
 		u16_slow_process_counter %= SLOW_PROCESS_EXECUTION_TIME;
 		
-		if(u16_slow_process_counter)
+		if(u16_slow_process_counter == 0)
 		{
 			u8_charge = stns01_get_charge();
 			u8_charging_enabled = stns01_get_charging_state();
@@ -261,7 +262,7 @@ void update_pattern(void)
 		break;
 			
 		case ACTIVE_PATTERN:
-			patterncontrol_update(u8_selected_pattern + 3, u8_led_length, &u16_pattern_control_state);
+			patterncontrol_update((pattern_t)(u8_selected_pattern + 3), u8_led_length, &u16_pattern_control_state);
 		break;
 	}
 	

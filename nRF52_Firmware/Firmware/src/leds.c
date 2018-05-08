@@ -37,7 +37,7 @@ void leds_update(led_color_t* led_color_buffer, uint16_t u16_length)
 		uint8_t u8_byte = u8_color_buffer_byte[i >> 3];
 		uint8_t u8_mask = 1 << (7-i % 8);
 
-		if(!(u8_byte & u8_mask))
+		if(!(u8_byte & u8_mask)) // '0'
 		{
 			nrf_gpio_pin_set(PIN_PWM1);
 			__NOP();
@@ -53,7 +53,36 @@ void leds_update(led_color_t* led_color_buffer, uint16_t u16_length)
 			__NOP();
 			__NOP();
 			__NOP();
+			
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
 			nrf_gpio_pin_clear(PIN_PWM1);
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			
+			// for L3 optimizations
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
 			__NOP();
 			__NOP();
 			__NOP();
@@ -69,7 +98,7 @@ void leds_update(led_color_t* led_color_buffer, uint16_t u16_length)
 			__NOP();
 			__NOP();
 		}
-		else
+		else	// '1'
 		{
 			nrf_gpio_pin_set(PIN_PWM1);
 			__NOP();
@@ -111,7 +140,24 @@ void leds_update(led_color_t* led_color_buffer, uint16_t u16_length)
 			__NOP();
 			__NOP();
 			__NOP();
+			
+			// for L3 optimizations
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
 			nrf_gpio_pin_clear(PIN_PWM1);
+			
+			// for L3 optimizations
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
+			__NOP();
 		}
 	}
 	
