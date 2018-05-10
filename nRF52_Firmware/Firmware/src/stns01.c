@@ -7,6 +7,7 @@
 
 void saadc_callback(nrf_drv_saadc_evt_t const * p_event);
 uint8_t u8_calculate_charge_percent(int16_t i16_voltage_x4);
+uint16_t stns01_voltage_iir(uint16_t);
 
 //static nrf_saadc_value_t     m_buffer_pool;
 //static stns01_charge_measured_handler_t charge_measured_callback;
@@ -61,7 +62,18 @@ uint8_t stns01_get_charge(void)
 	u8_adc_index++;
 	u8_adc_index %= 4;
 	
-	return u8_calculate_charge_percent(adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3]);
+	uint16_t u16_filtered_value = stns01_voltage_iir(adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3]);
+	
+	return u8_calculate_charge_percent(u16_filtered_value);
+}
+
+uint16_t stns01_voltage_iir(uint16_t u16_new_value)
+{
+	static uint16_t u16_value = 0;
+	
+	u16_value = u16_value + u16_value + u16_value + u16_new_value;
+	u16_value >>= 2;
+	return u16_value;
 }
 
 uint8_t u8_calculate_charge_percent(int16_t i16_voltage_x4)
@@ -79,6 +91,9 @@ uint8_t u8_calculate_charge_percent(int16_t i16_voltage_x4)
 	// 4V   : 4549
 	// 3.5V : 3979
 	// 3V   : 3752
+	
+	if(stns01_get_charging_state())	// charging offset (0.2V)
+		u32_calc_var -= 228;
 	
 	if(u32_calc_var >= 4549)
 		return 100;

@@ -28,7 +28,7 @@
 
 #define APP_BLE_OBSERVER_PRIO       3
 
-#define APP_ADV_INTERVAL			64							// *0.625ms => 40ms
+#define APP_ADV_INTERVAL			800						// *0.625ms => 500ms
 #define APP_ADV_TIMEOUT				180							// seconds
 
 #define MIN_CONN_INTERVAL           MSEC_TO_UNITS(20, UNIT_1_25_MS)	// 20ms
@@ -223,7 +223,7 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
             //err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
-            APP_ERROR_CHECK(err_code);
+            //APP_ERROR_CHECK(err_code);
             break;
         case BLE_ADV_EVT_IDLE:
 			if(p_adv_timeout_handler != NULL)
@@ -247,7 +247,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
         case BLE_GAP_EVT_CONNECTED:
             NRF_LOG_INFO("Connected");
             //err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-            APP_ERROR_CHECK(err_code);
+            //APP_ERROR_CHECK(err_code);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 		
 			if(p_connection_handler != NULL)

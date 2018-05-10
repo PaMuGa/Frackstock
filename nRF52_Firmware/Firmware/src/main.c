@@ -49,14 +49,15 @@ typedef enum {
 	INITIALIZING,
 	ADVERTISING,
 	CONNECTED_IDLE,
-	ACTIVE_PATTERN
+	ACTIVE_PATTERN,
+	BAT_CHARGING
 } application_state_t;
 
 application_state_t application_state = INITIALIZING;
 
 uint16_t cnt = 0;
 
-uint8_t u8_charge;
+uint16_t u16_charge;
 uint8_t u8_charging_enabled;
 
 uint8_t buf_ble_batt[] = {0x02, 0x00};
@@ -65,6 +66,8 @@ uint8_t buf_ble_batt[] = {0x02, 0x00};
 #define SLOW_PROCESS_EXECUTION_TIME		100	// ms
 uint16_t u16_slow_process_counter = 0;
 
+#define EXTREM_SLOW_PROCESS_EXECUTION_TIME	1000 // ms
+uint16_t u16_extrem_slow_process_counter = 0;
 
 int main()
 {
@@ -76,11 +79,11 @@ int main()
 	NRF_LOG_INFO("Startup...");
 	
 	// init modules
-	lis3de_init();
+	//lis3de_init();
 	nfc_init_app_start();
 	leds_init();
 	stns01_init();
-	//bluetooth_init(&ble_data_received_handler, &ble_adv_timeout_handler, &ble_connection_handler);
+	bluetooth_init(&ble_data_received_handler, &ble_adv_timeout_handler, &ble_connection_handler);
 	
 	application_state = ADVERTISING;
 	
@@ -91,7 +94,7 @@ int main()
 	
 	system_tick_init();
 	
-	leds_activate();
+	//leds_activate();
 	
 	
 	while(1)
@@ -101,13 +104,44 @@ int main()
 		
 		nrf_delay_ms(1);
 		
+		
+		
 		u16_slow_process_counter++;
 		u16_slow_process_counter %= SLOW_PROCESS_EXECUTION_TIME;
+		u16_extrem_slow_process_counter++;
+		u16_extrem_slow_process_counter %= EXTREM_SLOW_PROCESS_EXECUTION_TIME;
 		
 		if(u16_slow_process_counter == 0)
 		{
-			u8_charge = stns01_get_charge();
+			u16_charge = stns01_get_charge();
+		}
+		
+		if(u16_extrem_slow_process_counter == 0)
+		{
 			u8_charging_enabled = stns01_get_charging_state();
+			
+			if(u8_charging_enabled)
+			{
+				leds_activate();
+				patterncontrol_update(CHARGING, u8_led_length, &u16_charge);
+				nrf_delay_ms(100);
+				leds_deactivate();
+			} else
+			{
+				if(u16_charge <= 5)
+				{
+					leds_deactivate();
+				} else
+				{
+					leds_activate();
+				}
+			}
+			
+			if(application_state == CONNECTED_IDLE || application_state == ACTIVE_PATTERN)
+			{
+				uint8_t u8_bat_buf[] = {0x01, (uint8_t)u16_charge};
+				bluetooth_send(u8_bat_buf,2);
+			}
 		}
 	}
 }
@@ -135,7 +169,7 @@ void ble_data_received_handler(const uint8_t *p_data, uint8_t length)
 
 void ble_adv_timeout_handler(void)
 {
-	nfc_enter_wakeup_sleep_mode();
+	//nfc_enter_wakeup_sleep_mode();
 }
 
 void ble_connection_handler(uint8_t state)
@@ -246,25 +280,31 @@ void timer_led_event_handler(nrf_timer_event_t event_type, void* p_context)
 
 void update_pattern(void)
 {
-	switch(application_state)
+	if(!u8_charging_enabled)
 	{
-		default:
-		case INITIALIZING:
-			patterncontrol_update(RESET, u8_led_length, 0);
-		break;
-		
-		case ADVERTISING:
-			patterncontrol_update(BLE_CONNECT, u8_led_length, 0);
-		break;
-		
-		case BLE_CONNECTED:
-			patterncontrol_update(BLE_CONNECTED, u8_led_length, 0);
-		break;
+		switch(application_state)
+		{
+			default:
+			case INITIALIZING:
+				patterncontrol_update(RESET, u8_led_length, 0);
+			break;
 			
-		case ACTIVE_PATTERN:
-			patterncontrol_update((pattern_t)(u8_selected_pattern + 3), u8_led_length, &u16_pattern_control_state);
-		break;
+			case ADVERTISING:
+				patterncontrol_update(FLASH, u8_led_length, 0);
+			break;
+			
+			case BLE_CONNECTED:
+				patterncontrol_update(BLE_CONNECTED, u8_led_length, 0);
+			break;
+				
+			case ACTIVE_PATTERN:
+				patterncontrol_update((pattern_t)(u8_selected_pattern + 4), u8_led_length, &u16_pattern_control_state);
+			break;
+			
+			case BAT_CHARGING:
+				patterncontrol_update(CHARGING, u8_led_length, &u16_charge);
+			break;
+		}
 	}
-	
 }
 

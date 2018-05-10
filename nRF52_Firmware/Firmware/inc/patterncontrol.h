@@ -32,8 +32,12 @@
 typedef enum {
 	RESET,
 	BLE_CONNECT,
-	BLE_CONNECTED
-	
+	BLE_CONNECTED,
+	CHARGING,
+	RAINBOW,
+    FLASH,
+    FLASHWHITE,
+	SHIFT
 } pattern_t;
 
 /**

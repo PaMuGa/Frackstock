@@ -25,12 +25,15 @@
 #include "nrf.h"
 #include "nrf_gpio.h"
 #include "nrf_delay.h"
+#include "system_nrf52.h"
 
 void leds_update(led_color_t* led_color_buffer, uint16_t u16_length)
 {	
 	uint8_t *u8_color_buffer_byte = (uint8_t*)led_color_buffer;
 	
 	uint16_t u16_nbits = u16_length * 3 * 8;
+	
+	//__disable_irq();
 	
 	for(uint16_t i = 0; i < u16_nbits; i++)
 	{
@@ -162,6 +165,9 @@ void leds_update(led_color_t* led_color_buffer, uint16_t u16_length)
 	}
 	
 	nrf_gpio_pin_clear(PIN_PWM1);
+	
+	//__enable_irq();
+	
 	nrf_delay_us(50);	// wait at least 50us
 }
 
@@ -178,6 +184,9 @@ void leds_activate(void)
 {
 	// Enable power supply
 	nrf_gpio_pin_set(PIN_LED_EN);
+	
+	// wait until power ok
+	nrf_delay_ms(1);
 }
 
 void leds_deactivate(void)
