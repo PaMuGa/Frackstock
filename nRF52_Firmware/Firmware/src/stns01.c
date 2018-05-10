@@ -92,8 +92,8 @@ uint8_t u8_calculate_charge_percent(int16_t i16_voltage_x4)
 	// 3.5V : 3979
 	// 3V   : 3752
 	
-	if(stns01_get_charging_state())	// charging offset (0.2V)
-		u32_calc_var -= 228;
+	if(stns01_get_charging_state())	// charging offset (0.2V -> 4.242) mit Toleranz ca. 300
+		u32_calc_var -= 300; // 276
 	
 	if(u32_calc_var >= 4549)
 		return 100;
