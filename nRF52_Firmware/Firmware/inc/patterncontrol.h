@@ -34,6 +34,7 @@ typedef enum {
 	BLE_CONNECT,
 	BLE_CONNECTED,
 	CHARGING,
+	COLOR,
 	RAINBOW,
     FLASH,
     FLASHWHITE,
@@ -46,6 +47,6 @@ typedef enum {
 */
 void patterncontrol_update(pattern_t pattern,
 	uint8_t u8_pattern_length,
-	uint16_t *u16_control_state);
+	uint32_t *u32_control_state);
 
 #endif /* __patterncontrol_h */

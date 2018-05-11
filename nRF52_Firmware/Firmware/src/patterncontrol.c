@@ -23,19 +23,20 @@
 #include "patterncontrol.h"
 #include "leds.h"
 
-void set_pattern_ble_connect(led_color_t*, uint8_t, uint16_t);
-void set_pattern_ble_connected(led_color_t*, uint8_t, uint16_t);
-void set_pattern_charging(led_color_t*, uint8_t, uint16_t);
-void set_pattern_rainbow(led_color_t*,uint8_t,uint16_t*);
-void set_pattern_flash(led_color_t*, uint8_t, uint16_t*);
-void set_pattern_flashwhite(led_color_t*,uint8_t, uint16_t*);
-
+void set_pattern_ble_connect(led_color_t*, uint8_t, uint32_t);
+void set_pattern_ble_connected(led_color_t*, uint8_t, uint32_t);
+void set_pattern_charging(led_color_t*, uint8_t, uint32_t*);
+void set_pattern_color(led_color_t*, uint8_t, uint32_t*);
+void set_pattern_rainbow(led_color_t*,uint8_t,uint32_t*);
+void set_pattern_flash(led_color_t*, uint8_t, uint32_t*);
+void set_pattern_flashwhite(led_color_t*,uint8_t, uint32_t*);
 
 void reset_pattern(led_color_t* pattern_buffer);
 
+
 void patterncontrol_update(pattern_t pattern,
 	uint8_t u8_pattern_length,
-	uint16_t *u16_control_state)
+	uint32_t *u32_control_state)
 {
 	static led_color_t led_color[MAX_N_LEDS];
 	static pattern_t last_pattern;
@@ -56,15 +57,18 @@ void patterncontrol_update(pattern_t pattern,
 			set_pattern_ble_connected(led_color, u8_pattern_length, 0);
 			break;
 		case CHARGING:
-			set_pattern_charging(led_color, u8_pattern_length, *u16_control_state);
+			set_pattern_charging(led_color, u8_pattern_length, u32_control_state);
+			break;
+		case COLOR:
+			set_pattern_color(led_color, u8_pattern_length, u32_control_state);
 			break;
 		case RAINBOW:     
-            set_pattern_rainbow(led_color, u8_pattern_length, u16_control_state);
+            set_pattern_rainbow(led_color, u8_pattern_length, u32_control_state);
             break;
         case FLASH:
-           set_pattern_flash(led_color, u8_pattern_length, u16_control_state);
+           set_pattern_flash(led_color, u8_pattern_length, u32_control_state);
         case FLASHWHITE:
-            set_pattern_flashwhite(led_color, u8_pattern_length, u16_control_state);     
+            set_pattern_flashwhite(led_color, u8_pattern_length, u32_control_state);     
         case SHIFT:
             for(uint16_t i = 0; i < u8_pattern_length/10; i++)
             {
@@ -83,13 +87,12 @@ void patterncontrol_update(pattern_t pattern,
 			break;
 	}
 	
-	
 	leds_update(led_color, u8_pattern_length);
 }
 
 void set_pattern_ble_connect(led_color_t* pattern_buffer,
 	uint8_t u8_pattern_length,
-	uint16_t u16_control_state)
+	uint32_t u32_control_state)
 {
 	static uint8_t u8_state = 0;
 	
@@ -102,7 +105,7 @@ void set_pattern_ble_connect(led_color_t* pattern_buffer,
 
 void set_pattern_ble_connected(led_color_t* pattern_buffer,
 	uint8_t u8_pattern_length,
-	uint16_t u16_control_state)
+	uint32_t u32_control_state)
 {
 	for(uint16_t i = 0; i < MAX_N_LEDS; i++)
 	{
@@ -124,38 +127,38 @@ void reset_pattern(led_color_t* pattern_buffer)
 
 void set_pattern_charging(led_color_t* pattern_buffer,
 	uint8_t u8_pattern_length,
-	uint16_t u16_control_state)
+	uint32_t *u32_control_state)
 {
-	//static uint8_t u8_state = 0;
-	/*static uint8_t charging_timer = 0;
+	if(*u32_control_state > 100)
+		*u32_control_state = 100;
 	
-	charging_timer++;
-	charging_timer %= 500;
-	if(charging_timer == 0)
-	{*/
-	
-		if(u16_control_state > 100)
-			u16_control_state = 100;
-		
-		uint16_t u16_max = u8_pattern_length * u16_control_state / 100;
-		for(uint8_t i = 0; i < u8_pattern_length; i++)
-		{
-			if(i < u16_max)
-			{
-				pattern_buffer[u8_pattern_length - i - 1] = LED_COLOR_DARK_GREEN;
-			}
-			else
-			{
-				pattern_buffer[u8_pattern_length - i - 1] = LED_COLOR_OFF;
-			}
-		}
-		
-		
-	/*}
-	else
+	uint16_t u16_max = u8_pattern_length * *u32_control_state / 100;
+	for(uint8_t i = 0; i < u8_pattern_length; i++)
 	{
-		reset_pattern(pattern_buffer);
-	}*/
+		if(i < u16_max)
+		{
+			pattern_buffer[u8_pattern_length - i - 1] = LED_COLOR_DARK_GREEN;
+		}
+		else
+		{
+			pattern_buffer[u8_pattern_length - i - 1] = LED_COLOR_OFF;
+		}
+	}
+}
+
+void set_pattern_color(led_color_t* pattern_buffer,
+	uint8_t u8_pattern_length,
+	uint32_t *u32_control_state)
+{
+	led_color_t configured_color;
+	configured_color.u8_red = *u32_control_state >> 16;
+	configured_color.u8_green = (*u32_control_state >> 8) & 0xFF;
+	configured_color.u8_blue = *u32_control_state & 0xFF;
+	
+    for(uint16_t i = 0; i < u8_pattern_length; i++)
+    {
+		pattern_buffer[i] = configured_color;
+    }
 }
 
 void set_pattern_rainbow(led_color_t* pattern_buffer,
