@@ -25,10 +25,17 @@
 #define __nfc_h
 
 /**
+* @brief Eventhandler for active NFC reading.
+*/
+typedef void (*nfc_read_handler_t)(void);
+
+
+/**
 * @brief	Initializes NFC interface for starting the Android Application
 *			ch.pascal_mueller.frackstock
+* @param	nfc_read_handler	Handler to be called when a readout starts
 */
-void nfc_init_app_start(void);
+void nfc_init_app_start(nfc_read_handler_t nfc_read_handler);
 
 /**
 * @brief	Entering Sleep Mode and wakeup with NFC

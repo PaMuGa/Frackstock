@@ -16,7 +16,6 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.CountDownTimer;
 import android.os.IBinder;
-import android.support.annotation.NonNull;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -26,17 +25,20 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.UnsupportedEncodingException;
-import java.text.DateFormat;
-import java.util.Date;
-import java.util.TimerTask;
-
 public class ConnectActivity extends AppCompatActivity {
     private static final int REQUEST_ENABLE_BT = 1;
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 2;
 
     private TextView textView_Info = null;
-    private Button button_test = null;
+
+    private TextView tVBattery = null;
+    private Button button1 = null;
+    private Button button2 = null;
+    private Button button3 = null;
+    private Button button4 = null;
+    private Button button5 = null;
+    private Button button6 = null;
+    private Button button7 = null;
 
     private BluetoothAdapter bluetoothAdapter = null;
     private BluetoothLeScanner bluetoothLeScanner = null;
@@ -97,7 +99,13 @@ public class ConnectActivity extends AppCompatActivity {
         setContentView(R.layout.activity_connect);
         textView_Info = (TextView) findViewById(R.id.textView1);
 
-        button_test = null;
+        button1 = null;
+        button2 = null;
+        button3 = null;
+        button4 = null;
+        button5 = null;
+        button6 = null;
+        button7 = null;
     }
 
     private void setLayoutControl()
@@ -105,18 +113,69 @@ public class ConnectActivity extends AppCompatActivity {
         setContentView(R.layout.activity_control);
         textView_Info = null;
 
-        button_test = (Button) findViewById(R.id.button_test);
-        button_test.setOnClickListener(new View.OnClickListener() {
+        tVBattery = (TextView) findViewById(R.id.tVBattery);
+
+        button1 = (Button) findViewById(R.id.button1);
+        button2 = (Button) findViewById(R.id.button2);
+        button3 = (Button) findViewById(R.id.button3);
+        button4 = (Button) findViewById(R.id.button4);
+        button5 = (Button) findViewById(R.id.button5);
+        button6 = (Button) findViewById(R.id.button6);
+        button7 = (Button) findViewById(R.id.button7);
+
+        button1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                try {
-                    byte[] value = "123".getBytes("UTF-8");
-                    uartService.writeRXCharacteristic(value);
-                } catch (UnsupportedEncodingException e)
-                {
-                    e.printStackTrace();
-                }
+                byte[] value = {0x03, 0x01};    // enable master mode
+                uartService.writeRXCharacteristic(value);
+            }
+        });
 
+        button2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                byte[] value = {0x03, 0x00};    // enable slave mode
+                uartService.writeRXCharacteristic(value);
+            }
+        });
+
+        button3.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                byte[] value = {0x02, 0x01};    // enable slave mode
+                uartService.writeRXCharacteristic(value);
+            }
+        });
+
+        button4.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                byte[] value = {0x02, 0x02};    // enable slave mode
+                uartService.writeRXCharacteristic(value);
+            }
+        });
+
+        button5.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                byte[] value = {0x02, 0x03};    // enable slave mode
+                uartService.writeRXCharacteristic(value);
+            }
+        });
+
+        button6.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                byte[] value = {0x02, 0x04};    // enable slave mode
+                uartService.writeRXCharacteristic(value);
+            }
+        });
+
+        button7.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                byte[] value = {0x02, 0x05};    // enable slave mode
+                uartService.writeRXCharacteristic(value);
             }
         });
     }
@@ -184,9 +243,10 @@ public class ConnectActivity extends AppCompatActivity {
     private ScanCallback scanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
-            if(result.getRssi() > -45)
+            if(result.getRssi() >= -55)
             {
-                if(result.getDevice().getName().compareTo("Frackstock") == 0) {
+                String dev_name = result.getDevice().getName();
+                if(dev_name!= null && dev_name.compareTo("Frackstock") == 0) {
                     String message = "Found " + result.getDevice().getAddress()+ ", connecting...";
                     textView_Info.setText(message);
                     bluetoothLeScanner.stopScan(scanCallback);
@@ -281,7 +341,13 @@ public class ConnectActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     public void run() {
                         try {
-                            String text = new String(txValue, "UTF-8");
+                            switch (txValue[0])
+                            {
+                                case 0x01:
+                                    tVBattery.setText("Battery: " + txValue[1]);
+                                    break;
+                            }
+                            //String text = new String(txValue, "UTF-8");
                             //String currentDateTimeString = DateFormat.getTimeInstance().format(new Date());
                             /*listAdapter.add("["+currentDateTimeString+"] RX: "+text);
                             messageListView.smoothScrollToPosition(listAdapter.getCount() - 1);*/

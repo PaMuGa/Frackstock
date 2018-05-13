@@ -10,80 +10,74 @@
 #include "SEGGER_RTT.h"
 #include "nrf_drv_gpiote.h"
 #include "nrf_drv_timer.h"
-
 #include "custom_board.h"
-
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
-
 #include "patterncontrol.h"
 
-const nrf_drv_timer_t TIMER_LED = NRF_DRV_TIMER_INSTANCE(2);
+#define N_LEDS								60		// maximum number of leds
+#define SLOW_PROCESS_EXECUTION_TIME			100		// ms
+#define EXTREM_SLOW_PROCESS_EXECUTION_TIME	1000 	// ms
+#define SLAVE_TIMEOUT_SLEEP					60		// seconds
 
+static void log_init(void);
 void gyro_data_handler(LIS3DE_REGISTER_t, uint8_t);
 void ble_data_received_handler(const uint8_t *p_data, uint8_t length);
 void ble_adv_timeout_handler(void);
 void ble_connection_handler(uint8_t state);
 void acc_xyz_data_handler(lis3de_xyz_acc_data_t acc_data);
-
+void slave_update_handler(uint8_t, uint32_t);
 void system_tick_init(void);
 void timer_led_event_handler(nrf_timer_event_t event_type, void* p_context);
 void update_pattern(void);
+void goto_sleep(void);
+void nfc_read_handler(void);
 
-#define N_LEDS	60
-led_color_t led_color[N_LEDS];
-uint16_t u16_pattern_control_state = 0;
-uint8_t u8_led_length = N_LEDS;
-uint8_t u8_selected_pattern = 0;
-
-static void log_init(void)
-{
-    ret_code_t err_code = NRF_LOG_INIT(NULL);
-    APP_ERROR_CHECK(err_code);
-
-    NRF_LOG_DEFAULT_BACKENDS_INIT();
-}
-
+// possible application states
 typedef enum {
 	INITIALIZING,
 	ADVERTISING,
-	CONNECTED_IDLE,
-	ACTIVE_PATTERN,
-	BAT_CHARGING
+	CONNECTED,
+	IDLE
 } application_state_t;
 
+// application role
+typedef enum {
+	SLAVE,
+	MASTER
+} functional_state_t;
+
 application_state_t application_state = INITIALIZING;
+functional_state_t functional_state = SLAVE;
 
-uint16_t cnt = 0;
-
-uint16_t u16_charge;
-uint8_t u8_charging_enabled;
-
-uint8_t buf_ble_batt[] = {0x02, 0x00};
+const nrf_drv_timer_t TIMER_LED = NRF_DRV_TIMER_INSTANCE(2);	// LED timer instance
 
 
-#define SLOW_PROCESS_EXECUTION_TIME		100	// ms
+uint32_t u32_pattern_control_state = 0;	// pattern control sate
+uint8_t u8_led_length = N_LEDS;			// default led stip length with max n leds
+uint8_t u8_selected_pattern = 0;		// default pattern is zero
+
+uint32_t u32_charge;					// actual battery charge in percent
+uint8_t u8_charging_enabled;			// 1 if the battery is beeing charged
+
 uint16_t u16_slow_process_counter = 0;
-
-#define EXTREM_SLOW_PROCESS_EXECUTION_TIME	1000 // ms
 uint16_t u16_extrem_slow_process_counter = 0;
+uint16_t u16_slave_timeout_timer = SLAVE_TIMEOUT_SLEEP;
 
 int main()
 {
-	
-	// app started by nfc or gyro?
-	
 	// init log
 	log_init();
 	NRF_LOG_INFO("Startup...");
 	
 	// init modules
-	//lis3de_init();
-	nfc_init_app_start();
+	lis3de_init();
+	nfc_init_app_start(&nfc_read_handler);
 	leds_init();
 	stns01_init();
 	bluetooth_init(&ble_data_received_handler, &ble_adv_timeout_handler, &ble_connection_handler);
+	bluetooth_start_advertising();
 	
 	application_state = ADVERTISING;
 	
@@ -94,28 +88,28 @@ int main()
 	
 	system_tick_init();
 	
-	//leds_activate();
-	
+	slave_scan_init(slave_update_handler);
+	functional_state = SLAVE;
+	NRF_LOG_INFO("Acting as Slave.");
 	
 	while(1)
 	{
 		UNUSED_RETURN_VALUE(NRF_LOG_PROCESS());
-		sd_app_evt_wait();
 		
 		nrf_delay_ms(1);
-		
-		
 		
 		u16_slow_process_counter++;
 		u16_slow_process_counter %= SLOW_PROCESS_EXECUTION_TIME;
 		u16_extrem_slow_process_counter++;
 		u16_extrem_slow_process_counter %= EXTREM_SLOW_PROCESS_EXECUTION_TIME;
 		
+		// measure chare approximatly every tenth second
 		if(u16_slow_process_counter == 0)
 		{
-			u16_charge = stns01_get_charge();
+			u32_charge = stns01_get_charge();
 		}
 		
+		// check battery state and enable / disable leds approx. every second
 		if(u16_extrem_slow_process_counter == 0)
 		{
 			u8_charging_enabled = stns01_get_charging_state();
@@ -123,12 +117,13 @@ int main()
 			if(u8_charging_enabled)
 			{
 				leds_activate();
-				patterncontrol_update(CHARGING, u8_led_length, &u16_charge);
+				patterncontrol_update(CHARGING, u8_led_length, &u32_charge);
 				nrf_delay_ms(100);
 				leds_deactivate();
 			} else
 			{
-				if(u16_charge <= 5)
+				// disable LEDs if charge is below 5 percent
+				if(u32_charge <= 5)
 				{
 					leds_deactivate();
 				} else
@@ -137,13 +132,35 @@ int main()
 				}
 			}
 			
-			if(application_state == CONNECTED_IDLE || application_state == ACTIVE_PATTERN)
+			// send charge value to application if connected
+			if(application_state == CONNECTED)
 			{
-				uint8_t u8_bat_buf[] = {0x01, (uint8_t)u16_charge};
+				uint8_t u8_bat_buf[] = {0x01, (uint8_t)u32_charge};
 				bluetooth_send(u8_bat_buf,2);
+			}
+			
+			if(functional_state == SLAVE && application_state == IDLE && !u8_charging_enabled)
+			{
+				u16_slave_timeout_timer--;
+				
+				if(u16_slave_timeout_timer == 0)
+				{
+					goto_sleep();
+				}
 			}
 		}
 	}
+}
+
+/**
+* @brief Initialize log for RTT Logger
+*/
+static void log_init(void)
+{
+    ret_code_t err_code = NRF_LOG_INIT(NULL);
+    APP_ERROR_CHECK(err_code);
+
+    NRF_LOG_DEFAULT_BACKENDS_INIT();
 }
 
 void ble_data_received_handler(const uint8_t *p_data, uint8_t length)
@@ -153,7 +170,7 @@ void ble_data_received_handler(const uint8_t *p_data, uint8_t length)
 	switch(p_data[0]) // control byte
 	{
 		case 0x0:	// sync time
-			u16_pattern_control_state = 0;
+			u32_pattern_control_state = 0;
 		break;
 		
 		case 0x1: // set led strip length
@@ -161,23 +178,64 @@ void ble_data_received_handler(const uint8_t *p_data, uint8_t length)
 		break;
 		
 		case 0x2: // select pattern
-			application_state = ACTIVE_PATTERN;
-			u8_selected_pattern = p_data[1];
+			if(functional_state == MASTER)
+			{	
+				u8_selected_pattern = p_data[1];
+				u32_pattern_control_state = 0;
+				NRF_LOG_INFO("New pattern: %i", u8_selected_pattern);
+			}
+		break;
+		case 0x3: // select master / slave mode
+			if(p_data[1] == 1)
+			{
+				slave_scan_stop();
+				functional_state = MASTER;
+				master_advertising_init();
+				NRF_LOG_INFO("Acting as Master.");
+			}
+			else
+			{
+				master_advertising_stop();
+				functional_state = SLAVE;
+				slave_scan_init(slave_update_handler);
+				NRF_LOG_INFO("Acting as Slave.");
+			}
 		break;
 	}
 }
 
+/**
+* @brief Advertising timeout
+*/
 void ble_adv_timeout_handler(void)
 {
-	//nfc_enter_wakeup_sleep_mode();
+	NRF_LOG_INFO("Advertising Timeout.");
+	application_state = IDLE;
 }
 
+/**
+* @brief Bluetooth connected / disconnected handler
+*/
 void ble_connection_handler(uint8_t state)
 {
 	if(state)
-		application_state = CONNECTED_IDLE;
+	{
+		application_state = CONNECTED;
+	}
 	else
+	{
+		// new advertising started by default
 		application_state = ADVERTISING;
+		
+		// switch to slave function if disconnected
+		if(functional_state == MASTER)
+		{
+			master_advertising_stop();
+			functional_state = SLAVE;
+			slave_scan_init(slave_update_handler);
+			NRF_LOG_INFO("Acting as Slave.");
+		}
+	}
 }
 
 
@@ -202,6 +260,9 @@ void gyro_data_handler(LIS3DE_REGISTER_t lis3de_register, uint8_t data)
 static lis3de_xyz_acc_data_t lis3de_xyz_acc_data_fir_buffer[ACC_DATA_FIR_FILTER_LENGTH - 1];
 static uint8_t u8_filter_buffer_index_counter = 0;
 
+/**
+* @brief LIS3DE new data available handler
+*/
 void acc_xyz_data_handler(lis3de_xyz_acc_data_t acc_data)
 {
 	// filter data
@@ -221,22 +282,20 @@ void acc_xyz_data_handler(lis3de_xyz_acc_data_t acc_data)
 	acc_filtered.acc_x /= ACC_DATA_FIR_FILTER_LENGTH;
 	acc_filtered.acc_y /= ACC_DATA_FIR_FILTER_LENGTH;
 	acc_filtered.acc_z /= ACC_DATA_FIR_FILTER_LENGTH;
-	
-	// send data over ble
-	//uint8_t checksum = acc_filtered.acc_x + acc_filtered.acc_y + acc_filtered.acc_z + 0x10;
-	
-	// SOH | data length | STX | 4 byte data (acc data) | ETX | checksum | EOT
-	//uint8_t send_buffer[] = {0x01, 0x04, 0x02, 0x10, acc_filtered.acc_x, acc_filtered.acc_y, acc_filtered.acc_z, 0x03, checksum, 0x04};
-	
-	//bluetooth_send(send_buffer, sizeof(send_buffer));
 }
 
+/**
+* @brief Interrupt handler for LIS3DE data ready
+*/
 void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
 	// start data readout
     lis3de_read_XYZ_async(acc_xyz_data_handler);
 }
 
+/**
+* @brief Initialize interrupt Handler for LIS3DE
+*/
 void init_lis3de_data_interrupt(void)
 {
 	nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_TOGGLE(true);
@@ -246,6 +305,9 @@ void init_lis3de_data_interrupt(void)
     nrf_drv_gpiote_in_event_enable(PIN_INT1, true);
 }
 
+/**
+* @brief Initialize Timer for LED control
+*/
 void system_tick_init(void)
 {
 	uint32_t time_ms = 20;	// 50 Hz
@@ -264,6 +326,9 @@ void system_tick_init(void)
     nrf_drv_timer_enable(&TIMER_LED);
 }
 
+/**
+* @brief Timer timeout handler for updating LEDs
+*/
 void timer_led_event_handler(nrf_timer_event_t event_type, void* p_context)
 {
 	switch (event_type)
@@ -278,33 +343,58 @@ void timer_led_event_handler(nrf_timer_event_t event_type, void* p_context)
     }
 }
 
+/**
+* @brief Update LED pattern
+*/
 void update_pattern(void)
 {
+	if(u8_selected_pattern != 0) // not for color pattern
+		u32_pattern_control_state++;
+	
+	if(functional_state == MASTER)
+	{
+		// synchronize with slaves
+		update_master_params(&u8_selected_pattern, &u32_pattern_control_state);
+	}
+	
 	if(!u8_charging_enabled)
 	{
-		switch(application_state)
-		{
-			default:
-			case INITIALIZING:
-				patterncontrol_update(RESET, u8_led_length, 0);
-			break;
-			
-			case ADVERTISING:
-				patterncontrol_update(FLASH, u8_led_length, 0);
-			break;
-			
-			case BLE_CONNECTED:
-				patterncontrol_update(BLE_CONNECTED, u8_led_length, 0);
-			break;
-				
-			case ACTIVE_PATTERN:
-				patterncontrol_update((pattern_t)(u8_selected_pattern + 4), u8_led_length, &u16_pattern_control_state);
-			break;
-			
-			case BAT_CHARGING:
-				patterncontrol_update(CHARGING, u8_led_length, &u16_charge);
-			break;
-		}
+		patterncontrol_update((pattern_t)(u8_selected_pattern + 2), u8_led_length, &u32_pattern_control_state);
+	}
+}
+
+/**
+* @brief Update control data for slave
+*/
+void slave_update_handler(uint8_t u8_pattern, uint32_t u32_control_state)
+{
+	u8_selected_pattern = u8_pattern;
+	u32_control_state = u32_control_state;
+	u16_slave_timeout_timer = SLAVE_TIMEOUT_SLEEP;
+}
+
+/**
+* @brief Disables LEDs and enter sleep mode
+*/
+void goto_sleep(void)
+{
+	leds_deactivate();
+	slave_scan_stop();
+	bluetooth_disable();
+	
+	NRF_LOG_INFO("Going to sleep...");
+	nrf_delay_ms(200);
+	
+	nfc_enter_wakeup_sleep_mode();
+}
+
+void nfc_read_handler(void)
+{
+	if(application_state == IDLE)
+	{
+		NRF_LOG_INFO("Start Advertising by NFC");
+		bluetooth_start_advertising();
+		application_state = ADVERTISING;
 	}
 }
 

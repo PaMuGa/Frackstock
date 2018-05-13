@@ -26,6 +26,7 @@
 #include "nrf_gpio.h"
 #include "nrf_delay.h"
 #include "system_nrf52.h"
+#include "app_util_platform.h"
 
 void leds_update(led_color_t* led_color_buffer, uint16_t u16_length)
 {	
@@ -34,6 +35,7 @@ void leds_update(led_color_t* led_color_buffer, uint16_t u16_length)
 	uint16_t u16_nbits = u16_length * 3 * 8;
 	
 	//__disable_irq();
+	CRITICAL_REGION_ENTER();
 	
 	for(uint16_t i = 0; i < u16_nbits; i++)
 	{
@@ -167,6 +169,7 @@ void leds_update(led_color_t* led_color_buffer, uint16_t u16_length)
 	nrf_gpio_pin_clear(PIN_PWM1);
 	
 	//__enable_irq();
+	CRITICAL_REGION_EXIT();
 	
 	nrf_delay_us(50);	// wait at least 50us
 }

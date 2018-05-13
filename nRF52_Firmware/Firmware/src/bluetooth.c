@@ -6,20 +6,19 @@
 #include "ble_conn_params.h"
 #include "ble_hci.h"
 #include "nrf_ble_gatt.h"
-//#include "app_timer.h"
 #include "ble_nus.h"
 #include "nrf_sdh.h"
 #include "nrf_sdh_soc.h"
 #include "nrf_sdh_ble.h"
 #include "app_util_platform.h"
 #include "app_timer.h"
-//#include "bsp_btn_ble.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
 #define APP_BLE_CONN_CFG_TAG            1                                           /**< A tag identifying the SoftDevice BLE configuration. */
+#define APP_BLE_CONN_CFG_TAG_MASTER		2
 #define APP_FEATURE_NOT_SUPPORTED       BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2        /**< Reply when unsupported features are requested. */
 
 /* Configuration */
@@ -28,8 +27,11 @@
 
 #define APP_BLE_OBSERVER_PRIO       3
 
-#define APP_ADV_INTERVAL			800						// *0.625ms => 500ms
+#define APP_ADV_INTERVAL			800							// *0.625ms => 500ms
 #define APP_ADV_TIMEOUT				180							// seconds
+
+#define MASTER_ADV_INTERVAL			320							// *0.625ms => 200ms
+#define MASTER_ADV_TIMEOUT			1							// seconds
 
 #define MIN_CONN_INTERVAL           MSEC_TO_UNITS(20, UNIT_1_25_MS)	// 20ms
 #define MAX_CONN_INTERVAL           MSEC_TO_UNITS(75, UNIT_1_25_MS) // 75ms
@@ -40,22 +42,29 @@
 #define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(30000)                      /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3                                           /**< Number of attempts before giving up the connection parameter negotiation. */
 
-BLE_NUS_DEF(m_nus);                 /**< BLE NUS service instance. */
-NRF_BLE_GATT_DEF(m_gatt);           /**< GATT module instance. */
-BLE_ADVERTISING_DEF(m_advertising); /**< Advertising module instance. */
+#define MASTER_BEACON_INFO_LENGTH			0x0E					// data length
+#define MASTER_DEVICE_TYPE                 	0x02					// manufactor specific data
+#define MASTER_DATA_LENGTH					0x0C					// manufactor data length
+#define MASTER_IDENTIFICATION				0xC0, 0xB8, 0x89, 0xB6	// identification data 
+#define FIRMWARE_VERSION					0x01
+#define APP_COMPANY_IDENTIFIER          	0x0059                  /**< Company identifier for Nordic Semiconductor ASA. as per www.bluetooth.org. */
 
-static uint16_t   m_conn_handle          = BLE_CONN_HANDLE_INVALID;                 /**< Handle of the current connection. */
-static uint16_t   m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;            /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
-static ble_uuid_t m_adv_uuids[]          =                      // UUID
-{
-    {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}
-};
+#define MASTER_BEACON_OFFSET				0x07					// Ofset in data packet (advertising)
 
 
-ble_data_received_handler_t p_data_received_handler = NULL;
-ble_adv_timeout_handler_t p_adv_timeout_handler = NULL;
-ble_connection_handler_t p_connection_handler = NULL;
+BLE_NUS_DEF(m_nus);                 		// BLE NUS service instance.
+NRF_BLE_GATT_DEF(m_gatt);           		// GATT module instance.
+BLE_ADVERTISING_DEF(m_advertising); 		// Advertising module instance.
+BLE_ADVERTISING_DEF(master_advertising);	// Advertising module for master control
 
+static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID; 	// Handle of the current connection.
+
+static ble_gap_adv_params_t m_adv_params;		// Advertising parameters
+
+ble_data_received_handler_t p_data_received_handler = NULL;		// BLE data received handler
+ble_adv_timeout_handler_t p_adv_timeout_handler = NULL;			// Advertising timeout handler
+ble_connection_handler_t p_connection_handler = NULL;			// BLE connected / disconnected handler
+ble_slave_received_handler_t p_slave_received_handler = NULL;	// Slave data received handler
 
 static void gap_params_init(void);
 static void services_init(void);
@@ -63,9 +72,6 @@ static void conn_params_init(void);
 static void ble_stack_init(void);
 void gatt_init(void);
 static void advertising_init(void);
-//static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context);
-
-//NRF_SDH_BLE_OBSERVER(m_ble_observer, BSP_BTN_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
 
 void bluetooth_init(ble_data_received_handler_t data_received_handler,
 					ble_adv_timeout_handler_t adv_timeout_handler,
@@ -86,11 +92,14 @@ void bluetooth_init(ble_data_received_handler_t data_received_handler,
     services_init();
     advertising_init();
     conn_params_init();
-	
-	err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
-    APP_ERROR_CHECK(err_code);
 }
 
+
+void bluetooth_start_advertising(void)
+{
+	uint32_t err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
+    APP_ERROR_CHECK(err_code);
+}
 
 
 static void gap_params_init(void)
@@ -124,39 +133,14 @@ void bluetooth_send(uint8_t *u8_buffer, uint16_t u16_length)
 
 static void nus_data_handler(ble_nus_evt_t * p_evt)
 {
-
     if (p_evt->type == BLE_NUS_EVT_RX_DATA)
     {
-        //uint32_t err_code;
-		
 		NRF_LOG_INFO("Received data from BLE NUS");
 		
 		if(p_data_received_handler != NULL)
 		{
 			p_data_received_handler(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
 		}
-		
-        //NRF_LOG_DEBUG("Received data from BLE NUS. Writing data on UART.");
-        //NRF_LOG_HEXDUMP_DEBUG(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
-		
-		//ble_nus_string_send(&m_nus, (uint8_t*)p_evt->params.rx_data.p_data, &p_evt->params.rx_data.length);
-
-        /*for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
-        {
-            do
-            {
-                err_code = app_uart_put(p_evt->params.rx_data.p_data[i]);
-                if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_BUSY))
-                {
-                    NRF_LOG_ERROR("Failed receiving NUS message. Error 0x%x. ", err_code);
-                    APP_ERROR_CHECK(err_code);
-                }
-            } while (err_code == NRF_ERROR_BUSY);
-        }
-        if (p_evt->params.rx_data.p_data[p_evt->params.rx_data.length-1] == '\r')
-        {
-            while (app_uart_put('\n') == NRF_ERROR_BUSY);
-        }*/
     }
 }
 
@@ -217,20 +201,15 @@ static void conn_params_init(void)
 
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 {
-    uint32_t err_code;
-
     switch (ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
-            //err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
-            //APP_ERROR_CHECK(err_code);
             break;
         case BLE_ADV_EVT_IDLE:
 			if(p_adv_timeout_handler != NULL)
 			{
 				p_adv_timeout_handler();
 			}
-            //sleep_mode_enter();
             break;
         default:
             break;
@@ -241,6 +220,9 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 {
     uint32_t err_code;
+	ble_gap_evt_adv_report_t adv_report;
+	uint8_t u8_selected_pattern;
+	uint32_t u32_control_state;
 
     switch (p_ble_evt->header.evt_id)
     {
@@ -279,6 +261,32 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             APP_ERROR_CHECK(err_code);
         } break;
 #endif //!defined (S112)
+		
+		 case BLE_GAP_EVT_ADV_REPORT:
+			// receiving slave control packets 
+			adv_report = p_ble_evt->evt.gap_evt.params.adv_report;
+			if(p_slave_received_handler != NULL)
+			{
+				if(adv_report.dlen == MASTER_BEACON_INFO_LENGTH + MASTER_BEACON_OFFSET)
+				{
+					if(adv_report.data[6 + MASTER_BEACON_OFFSET] == FIRMWARE_VERSION &&
+						adv_report.data[2 + MASTER_BEACON_OFFSET] == 0xC0 &&
+						adv_report.data[3 + MASTER_BEACON_OFFSET] == 0xB8 &&
+						adv_report.data[4 + MASTER_BEACON_OFFSET] == 0x89 &&
+						adv_report.data[5 + MASTER_BEACON_OFFSET] == 0xB6)
+					{
+						u8_selected_pattern = adv_report.data[7 + MASTER_BEACON_OFFSET];
+						u32_control_state = adv_report.data[8 + MASTER_BEACON_OFFSET] << 24 |
+							adv_report.data[9 + MASTER_BEACON_OFFSET] << 16 |
+							adv_report.data[10 + MASTER_BEACON_OFFSET] << 8 |
+							adv_report.data[11 + MASTER_BEACON_OFFSET];
+						
+						p_slave_received_handler(u8_selected_pattern, u32_control_state);
+					}
+				}
+			}
+			break;
+		
         case BLE_GATTS_EVT_SYS_ATTR_MISSING:
             // No system attributes have been stored.
             err_code = sd_ble_gatts_sys_attr_set(m_conn_handle, NULL, 0, 0);
@@ -364,26 +372,14 @@ void gatt_evt_handler(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const * p_evt)
 {
     if ((m_conn_handle == p_evt->conn_handle) && (p_evt->evt_id == NRF_BLE_GATT_EVT_ATT_MTU_UPDATED))
     {
-        m_ble_nus_max_data_len = p_evt->params.att_mtu_effective - OPCODE_LENGTH - HANDLE_LENGTH;
-        //NRF_LOG_INFO("Data len is set to 0x%X(%d)", m_ble_nus_max_data_len, m_ble_nus_max_data_len);
+        //m_ble_nus_max_data_len = p_evt->params.att_mtu_effective - OPCODE_LENGTH - HANDLE_LENGTH;
     }
-    /*NRF_LOG_DEBUG("ATT MTU exchange completed. central 0x%x peripheral 0x%x",
-                  p_gatt->att_mtu_desired_central,
-                  p_gatt->att_mtu_desired_periph);*/
 }
 
 
 /**@brief Function for initializing the GATT library. */
 void gatt_init(void)
-{
-    /*ret_code_t err_code;
-
-    err_code = nrf_ble_gatt_init(&m_gatt, gatt_evt_handler);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = nrf_ble_gatt_att_mtu_periph_set(&m_gatt, 64);
-    APP_ERROR_CHECK(err_code);*/
-	
+{	
 	ret_code_t err_code;
 
     err_code = nrf_ble_gatt_init(&m_gatt, gatt_evt_handler);
@@ -402,10 +398,7 @@ static void advertising_init(void)
 
     init.advdata.name_type          = BLE_ADVDATA_FULL_NAME;
     init.advdata.include_appearance = false;
-    init.advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE;
-
-    init.srdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
-    init.srdata.uuids_complete.p_uuids  = m_adv_uuids;
+    init.advdata.flags              = BLE_GAP_ADV_FLAG_BR_EDR_NOT_SUPPORTED;
 
     init.config.ble_adv_fast_enabled  = true;
     init.config.ble_adv_fast_interval = APP_ADV_INTERVAL;
@@ -420,3 +413,101 @@ static void advertising_init(void)
 }
 
 
+static uint8_t m_beacon_info[MASTER_BEACON_INFO_LENGTH] =
+{
+	MASTER_DEVICE_TYPE,
+	MASTER_DATA_LENGTH,			// data length
+	MASTER_IDENTIFICATION,		// to identify
+	FIRMWARE_VERSION,			// Firmware Version
+	0x00,						// selected pattern
+	0x00, 0x00, 0x00, 0x00,		// control state info
+	0x00, 0x00					// reserved for future use
+};
+
+ble_advdata_t advdata_master;
+uint8_t       flags_master = BLE_GAP_ADV_FLAG_BR_EDR_NOT_SUPPORTED;
+ble_advdata_manuf_data_t manuf_specific_data_master;
+
+void update_master_params(uint8_t *u8_pattern, uint32_t *params)
+{
+	uint32_t      err_code;
+	
+	m_beacon_info[7] = *u8_pattern;
+	m_beacon_info[8] = *params >> 24;
+	m_beacon_info[9] = (*params >> 16) & 0xFF;
+	m_beacon_info[10] = (*params >> 8) & 0xFF;
+	m_beacon_info[11] = *params & 0xFF;
+	
+	err_code = ble_advdata_set(&advdata_master, NULL);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+void master_advertising_init(void)
+{
+	uint32_t      err_code;
+    
+    manuf_specific_data_master.company_identifier = APP_COMPANY_IDENTIFIER;
+	
+	manuf_specific_data_master.data.p_data = (uint8_t *) m_beacon_info;
+    manuf_specific_data_master.data.size   = MASTER_BEACON_INFO_LENGTH;
+
+    // Build and set advertising data.
+    memset(&advdata_master, 0, sizeof(advdata_master));
+
+    advdata_master.name_type             = BLE_ADVDATA_NO_NAME;
+    advdata_master.flags                 = flags_master;
+    advdata_master.p_manuf_specific_data = &manuf_specific_data_master;
+
+    err_code = ble_advdata_set(&advdata_master, NULL);
+    APP_ERROR_CHECK(err_code);
+
+    // Initialize advertising parameters (used when starting advertising).
+    memset(&m_adv_params, 0, sizeof(m_adv_params));
+
+    m_adv_params.type        = BLE_GAP_ADV_TYPE_ADV_NONCONN_IND;
+    m_adv_params.p_peer_addr = NULL;    // Undirected advertisement.
+    m_adv_params.fp          = BLE_GAP_ADV_FP_ANY;
+    m_adv_params.interval    = MASTER_ADV_INTERVAL;
+    m_adv_params.timeout     = 0;       // Never time out.
+	
+	err_code = sd_ble_gap_adv_start(&m_adv_params, APP_BLE_CONN_CFG_TAG_MASTER);
+    APP_ERROR_CHECK(err_code);
+}
+
+void master_advertising_stop(void)
+{
+	uint32_t err_code = sd_ble_gap_adv_stop();
+	APP_ERROR_CHECK(err_code);
+}
+
+static ble_gap_scan_params_t scan_params;
+
+void slave_scan_init(ble_slave_received_handler_t handler)
+{
+	uint32_t err_code;
+	
+	p_slave_received_handler = handler;
+	
+	scan_params.active = 0;
+	scan_params.adv_dir_report = 0;
+	scan_params.use_whitelist = 0;
+	scan_params.interval = 160; // 100ms
+	scan_params.window = 80;	// 50ms
+	scan_params.timeout = 0; // never
+	
+	err_code = sd_ble_gap_scan_start(&scan_params);
+	APP_ERROR_CHECK(err_code);
+}
+
+void slave_scan_stop(void)
+{
+	uint32_t err_code = sd_ble_gap_scan_stop();
+	APP_ERROR_CHECK(err_code);
+}
+
+void bluetooth_disable(void)
+{
+	uint32_t err_code = nrf_sdh_disable_request();
+	APP_ERROR_CHECK(err_code);
+}

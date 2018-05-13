@@ -30,15 +30,14 @@
 
 /// Available Patterns
 typedef enum {
-	RESET,
-	BLE_CONNECT,
-	BLE_CONNECTED,
+	RESET,				// all leds off
 	CHARGING,
 	COLOR,
 	RAINBOW,
     FLASH,
     FLASHWHITE,
-	SHIFT
+	SHIFT,
+	PURPLE_RAIN
 } pattern_t;
 
 /**

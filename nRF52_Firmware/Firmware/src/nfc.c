@@ -39,19 +39,29 @@ static const uint8_t android_package_name[] = {'c', 'h', '.', 'p', 'a', 's', 'c'
                                                'a', 'c', 'k', 's', 't', 'o', 'c', 'k'};
 
 uint8_t ndef_msg_buf[256];
-												 
-												 
+
+nfc_read_handler_t p_nfc_read_handler;
+											   
 /**
  * @brief Callback function for handling NFC events.
  */
 void nfc_callback(void * p_context, nfc_t2t_event_t event, const uint8_t * p_data, size_t data_length)
 {
+	if(event == NFC_T2T_EVENT_FIELD_ON)
+	{
+		if(p_nfc_read_handler != NULL)
+		{
+			p_nfc_read_handler();
+		}
+	}
 }												 
 												 
-void nfc_init_app_start(void)
+void nfc_init_app_start(nfc_read_handler_t nfc_read_handler)
 {
     uint32_t len;
     uint32_t err_code;
+	
+	p_nfc_read_handler = nfc_read_handler;
 
     /* Set up NFC */
     err_code = nfc_t2t_setup(nfc_callback, NULL);
@@ -69,16 +79,17 @@ void nfc_init_app_start(void)
 
     /* Set created message as the NFC payload */
     err_code = nfc_t2t_payload_set(ndef_msg_buf, len);
-	APP_ERROR_CHECK(err_code);
-
+	APP_ERROR_CHECK(err_code);						
+										
     err_code = nfc_t2t_emulation_start();
 	APP_ERROR_CHECK(err_code);							
 }
 
 
+ret_code_t err_code = NRF_SUCCESS;
 void nfc_enter_wakeup_sleep_mode(void)
 {
-	ret_code_t err_code = NRF_SUCCESS;
+	err_code = nfc_t2t_emulation_stop();;
 	err_code = bsp_nfc_sleep_mode_prepare();
     APP_ERROR_CHECK(err_code);
 	

@@ -50,6 +50,7 @@ static lis3de_xyz_acc_data_t acc_data_xyz;
  */
 void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
 {
+	NRF_LOG_INFO("LIS3DE handler.");
     switch (p_event->type)
     {
         case NRF_DRV_TWI_EVT_DONE:
@@ -77,6 +78,7 @@ void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
 			NRF_LOG_WARNING("LIS3DE no connection.");
 			break;
 		case NRF_DRV_TWI_EVT_DATA_NACK:
+			NRF_LOG_WARNING("LIS3DE something wrong.");
 			// Verbindung ja, ungültiges Register / Daten
 			break;
         default:
