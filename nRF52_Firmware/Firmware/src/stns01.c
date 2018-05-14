@@ -4,9 +4,10 @@
 #include "nrf.h"
 #include "nrf_gpio.h"
 #include "nrf_drv_saadc.h"
+#include "nrf_log.h"
 
 void saadc_callback(nrf_drv_saadc_evt_t const * p_event);
-uint8_t u8_calculate_charge_percent(int16_t i16_voltage_x4);
+uint8_t u8_calculate_charge_percent(uint16_t u16_voltage_x4);
 uint16_t stns01_voltage_iir(uint16_t);
 
 //static nrf_saadc_value_t     m_buffer_pool;
@@ -69,17 +70,17 @@ uint8_t stns01_get_charge(void)
 
 uint16_t stns01_voltage_iir(uint16_t u16_new_value)
 {
-	static uint16_t u16_value = 0;
+	static uint32_t u32_value = 0;
 	
-	u16_value = u16_value + u16_value + u16_value + u16_new_value;
-	u16_value >>= 2;
-	return u16_value;
+	u32_value = u32_value * 7 + u16_new_value;
+	u32_value >>= 3;
+	return u32_value;
 }
 
-uint8_t u8_calculate_charge_percent(int16_t i16_voltage_x4)
+uint8_t u8_calculate_charge_percent(uint16_t u16_voltage_x4)
 {
 	// voltageinput is 12bit, 4096 = 3.6V at AIN0
-	uint32_t u32_calc_var = i16_voltage_x4;
+	uint32_t u32_calc_var = u16_voltage_x4;
 	
 	// invert resistance divisor
 	u32_calc_var = u32_calc_var * 32;
@@ -95,10 +96,10 @@ uint8_t u8_calculate_charge_percent(int16_t i16_voltage_x4)
 	if(stns01_get_charging_state())	// charging offset (0.2V -> 4.242) mit Toleranz ca. 300
 		u32_calc_var -= 300; // 276
 	
-	if(u32_calc_var >= 4549)
+	if(u32_calc_var >= 4546)
 		return 100;
 	else if(u32_calc_var >= 3979)
-		return (u32_calc_var - 3979) / 5 + 20;
+		return (u32_calc_var - 3979) / 7 + 20;
 	else if(u32_calc_var >= 3752)
 		return (u32_calc_var - 3752) / 20;
 	else
