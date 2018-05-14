@@ -54,7 +54,7 @@ functional_state_t functional_state = SLAVE;
 const nrf_drv_timer_t TIMER_LED = NRF_DRV_TIMER_INSTANCE(2);	// LED timer instance
 
 
-uint32_t u32_pattern_control_state = 0;	// pattern control sate
+uint32_t u32_pattern_control_state = 0x08;	// pattern control state (dark blue)
 uint8_t u8_led_length = N_LEDS;			// default led stip length with max n leds
 uint8_t u8_selected_pattern = 0;		// default pattern is zero
 
@@ -92,6 +92,8 @@ int main()
 	functional_state = SLAVE;
 	NRF_LOG_INFO("Acting as Slave.");
 	
+	//leds_activate();
+	
 	while(1)
 	{
 		UNUSED_RETURN_VALUE(NRF_LOG_PROCESS());
@@ -116,6 +118,7 @@ int main()
 			
 			if(u8_charging_enabled)
 			{
+				NRF_LOG_INFO("Charging... Battery: %i", u32_charge);
 				leds_activate();
 				patterncontrol_update(CHARGING, u8_led_length, &u32_charge);
 				nrf_delay_ms(100);
@@ -125,6 +128,7 @@ int main()
 				// disable LEDs if charge is below 5 percent
 				if(u32_charge <= 5)
 				{
+					NRF_LOG_INFO("Battery low, disable LEDs");
 					leds_deactivate();
 				} else
 				{
@@ -228,13 +232,13 @@ void ble_connection_handler(uint8_t state)
 		application_state = ADVERTISING;
 		
 		// switch to slave function if disconnected
-		if(functional_state == MASTER)
+		/*if(functional_state == MASTER)
 		{
 			master_advertising_stop();
 			functional_state = SLAVE;
 			slave_scan_init(slave_update_handler);
 			NRF_LOG_INFO("Acting as Slave.");
-		}
+		}*/
 	}
 }
 
