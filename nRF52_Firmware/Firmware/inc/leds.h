@@ -37,7 +37,7 @@ typedef struct {
 static const led_color_t LED_COLOR_OFF = {0,0,0};
 static const led_color_t LED_COLOR_RED = {0,255,0};
 static const led_color_t LED_COLOR_GREEN = {255,0,0};
-static const led_color_t LED_COLOR_DARK_GREEN = {32,0,0};
+static const led_color_t LED_COLOR_DARK_GREEN = {16,0,0};
 static const led_color_t LED_COLOR_BLUE = {0,0,255};
 static const led_color_t LED_COLOR_WHITE = {255,255,255};
 
