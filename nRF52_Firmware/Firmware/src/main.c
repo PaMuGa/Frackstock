@@ -136,11 +136,11 @@ int main()
 				}
 			}
 			
-			// send charge value to application if connected
+			// send application information to the smartphone if connected
 			if(application_state == CONNECTED)
 			{
-				uint8_t u8_bat_buf[] = {0x01, (uint8_t)u32_charge};
-				bluetooth_send(u8_bat_buf,2);
+				uint8_t u8_bat_buf[] = {0x01, (uint8_t)u32_charge, (uint8_t)functional_state};
+				bluetooth_send(u8_bat_buf,3);
 			}
 			
 			if(functional_state == SLAVE && application_state == IDLE && !u8_charging_enabled)
@@ -232,13 +232,13 @@ void ble_connection_handler(uint8_t state)
 		application_state = ADVERTISING;
 		
 		// switch to slave function if disconnected
-		/*if(functional_state == MASTER)
+		if(functional_state == MASTER)
 		{
 			master_advertising_stop();
 			functional_state = SLAVE;
 			slave_scan_init(slave_update_handler);
 			NRF_LOG_INFO("Acting as Slave.");
-		}*/
+		}
 	}
 }
 
