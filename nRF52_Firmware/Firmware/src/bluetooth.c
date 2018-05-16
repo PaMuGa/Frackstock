@@ -442,10 +442,14 @@ void update_master_params(uint8_t *u8_pattern, uint32_t *params)
     APP_ERROR_CHECK(err_code);
 }
 
+static uint8_t u8_master_advertising = 0;
+static uint8_t u8_slave_scanning = 0;
 
 void master_advertising_init(void)
 {
 	uint32_t      err_code;
+	
+	if(u8_master_advertising) return;
     
     manuf_specific_data_master.company_identifier = APP_COMPANY_IDENTIFIER;
 	
@@ -473,12 +477,18 @@ void master_advertising_init(void)
 	
 	err_code = sd_ble_gap_adv_start(&m_adv_params, APP_BLE_CONN_CFG_TAG_MASTER);
     APP_ERROR_CHECK(err_code);
+	
+	u8_master_advertising = 1;
 }
 
 void master_advertising_stop(void)
 {
-	uint32_t err_code = sd_ble_gap_adv_stop();
-	APP_ERROR_CHECK(err_code);
+	if(u8_master_advertising)
+	{
+		uint32_t err_code = sd_ble_gap_adv_stop();
+		u8_master_advertising = 0;
+		APP_ERROR_CHECK(err_code);
+	}
 }
 
 static ble_gap_scan_params_t scan_params;
@@ -486,6 +496,8 @@ static ble_gap_scan_params_t scan_params;
 void slave_scan_init(ble_slave_received_handler_t handler)
 {
 	uint32_t err_code;
+	
+	if(u8_slave_scanning) return;
 	
 	p_slave_received_handler = handler;
 	
@@ -498,12 +510,18 @@ void slave_scan_init(ble_slave_received_handler_t handler)
 	
 	err_code = sd_ble_gap_scan_start(&scan_params);
 	APP_ERROR_CHECK(err_code);
+	
+	u8_slave_scanning = 1;
 }
 
 void slave_scan_stop(void)
 {
-	uint32_t err_code = sd_ble_gap_scan_stop();
-	APP_ERROR_CHECK(err_code);
+	if(u8_slave_scanning)
+	{
+		uint32_t err_code = sd_ble_gap_scan_stop();
+		u8_slave_scanning = 0;
+		APP_ERROR_CHECK(err_code);
+	}
 }
 
 void bluetooth_disable(void)
