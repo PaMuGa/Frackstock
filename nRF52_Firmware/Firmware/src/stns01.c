@@ -71,10 +71,16 @@ uint8_t stns01_get_charge(void)
 uint16_t stns01_voltage_iir(uint16_t u16_new_value)
 {
 	static uint32_t u32_value = 0;
+	static uint8_t u8_first = 0;
 	
-	u32_value = u32_value * 7 + u16_new_value;
-	u32_value >>= 3;
-	return u32_value;
+	if(u8_first == 0)
+	{
+		u32_value = ((uint32_t)u16_new_value) << 6;
+		u8_first = 1;
+	}
+	
+	u32_value = u32_value - (u32_value >> 6) + u16_new_value;
+	return u32_value >> 6;
 }
 
 uint8_t u8_calculate_charge_percent(uint16_t u16_voltage_x4)
