@@ -139,7 +139,9 @@ int main()
 			// send application information to the smartphone if connected
 			if(application_state == CONNECTED)
 			{
-				uint8_t u8_bat_buf[] = {0x01, (uint8_t)u32_charge, (uint8_t)functional_state};
+				uint8_t u8_bat_buf[] = {0x01, (uint8_t)u32_charge, (uint8_t)functional_state, u8_selected_pattern,
+										u32_pattern_control_state >> 24, (u32_pattern_control_state >> 16) & 0xFF,
+										(u32_pattern_control_state >> 8) & 0xFF, u32_pattern_control_state & 0xFF};
 				bluetooth_send(u8_bat_buf,3);
 			}
 			
@@ -203,6 +205,13 @@ void ble_data_received_handler(const uint8_t *p_data, uint8_t length)
 				functional_state = SLAVE;
 				slave_scan_init(slave_update_handler);
 				NRF_LOG_INFO("Acting as Slave.");
+			}
+			break;
+		case 0x4: // set patterncontrol value (for color mode)
+			if(functional_state == MASTER)
+			{
+				u32_pattern_control_state = p_data[1] << 16 || p_data[2] << 8 || p_data[3];
+				u8_selected_pattern = 0;
 			}
 		break;
 	}
