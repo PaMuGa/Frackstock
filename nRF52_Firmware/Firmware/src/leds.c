@@ -128,21 +128,35 @@ void leds_init(void)
 		m_buffer_tx[i] = 0;
 	}
 	
-	err_code = nrf_drv_i2s_start(0, m_buffer_tx, I2S_BUFFER_SIZE, 0);
-	APP_ERROR_CHECK(err_code);
+	//err_code = nrf_drv_i2s_start(0, m_buffer_tx, I2S_BUFFER_SIZE, 0);
+	//APP_ERROR_CHECK(err_code);
 }
+
+static uint8_t u8_is_enabled = 0;
 
 void leds_activate(void)
 {
+	uint32_t u32_err_code;
+	
 	// Enable power supply
 	nrf_gpio_pin_set(PIN_LED_EN);
 	
 	// wait until power ok
 	nrf_delay_ms(1);
+	
+	if(u8_is_enabled) return;
+	
+	u32_err_code = nrf_drv_i2s_start(0, m_buffer_tx, I2S_BUFFER_SIZE, 0);
+	APP_ERROR_CHECK(u32_err_code);
+	u8_is_enabled = 1;
 }
 
 void leds_deactivate(void)
 {
+	nrf_drv_i2s_stop();
+	
+	u8_is_enabled = 0;
+	
 	// disable power supply
 	nrf_gpio_pin_clear(PIN_LED_EN);
 }
