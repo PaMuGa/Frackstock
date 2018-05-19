@@ -135,7 +135,9 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 {
     if (p_evt->type == BLE_NUS_EVT_RX_DATA)
     {
+		#ifdef DEBUG
 		NRF_LOG_INFO("Received data from BLE NUS");
+		#endif
 		
 		if(p_data_received_handler != NULL)
 		{
@@ -227,7 +229,9 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
+			#ifdef DEBUG
             NRF_LOG_INFO("Connected");
+			#endif
             //err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
             //APP_ERROR_CHECK(err_code);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
@@ -237,7 +241,9 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
+			#ifdef DEBUG
             NRF_LOG_INFO("Disconnected");
+			#endif
             // LED indication will be changed when advertising starts.
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 		

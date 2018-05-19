@@ -68,14 +68,17 @@ uint16_t u16_battery_voltage;
 
 int main()
 {
-	nrf_gpio_cfg(21, NRF_GPIO_PIN_DIR_INPUT, NRF_GPIO_PIN_INPUT_DISCONNECT, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_H0H1, NRF_GPIO_PIN_NOSENSE);
+	//nrf_gpio_cfg(21, NRF_GPIO_PIN_DIR_INPUT, NRF_GPIO_PIN_INPUT_DISCONNECT, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_H0H1, NRF_GPIO_PIN_NOSENSE);
 	
 	// init log
 	log_init();
+	#ifdef DEBUG
 	NRF_LOG_INFO("Startup...");
+	NRF_LOG_WARNING("!!DEBUGGING ENABLED!!");
+	#endif
 	
 	// init modules
-	lis3de_init();
+	//lis3de_init();
 	nfc_init_app_start(&nfc_read_handler);
 	leds_init();
 	stns01_init();
@@ -84,7 +87,9 @@ int main()
 	
 	application_state = ADVERTISING;
 	
+	#ifdef DEBUG
 	NRF_LOG_INFO("Initialized.");
+	#endif
 	
 	// wait until initialization finished
 	nrf_delay_ms(10);
@@ -93,7 +98,10 @@ int main()
 	
 	slave_scan_init(slave_update_handler);
 	functional_state = SLAVE;
+	
+	#ifdef DEBUG
 	NRF_LOG_INFO("Acting as Slave.");
+	#endif
 	
 	//leds_activate();
 	
@@ -122,19 +130,25 @@ int main()
 			
 			if(u8_charging_enabled)
 			{
+				#ifdef DEBUG
 				NRF_LOG_INFO("Charging... Battery: %i, Voltage [mV]: %i", u32_charge, u16_battery_voltage);
+				#endif
 				patterncontrol_update(CHARGING, u8_led_length, &u32_charge);
 				leds_activate();
 				nrf_delay_ms(50);
 				leds_deactivate();
 			} else
 			{
+				#ifdef DEBUG
 				NRF_LOG_INFO("Battery: %i, Voltage [mV]: %i", u32_charge, u16_battery_voltage);
+				#endif
 				
 				// disable LEDs if charge is below 5 percent
 				if(u32_charge <= 5)
 				{
+					#ifdef DEBUG
 					NRF_LOG_INFO("Battery low, disable LEDs");
+					#endif
 					leds_deactivate();
 				} else
 				{
@@ -175,10 +189,12 @@ int main()
 */
 static void log_init(void)
 {
+	#ifdef DEBUG
     ret_code_t err_code = NRF_LOG_INIT(NULL);
     APP_ERROR_CHECK(err_code);
 
     NRF_LOG_DEFAULT_BACKENDS_INIT();
+	#endif
 }
 
 void ble_data_received_handler(const uint8_t *p_data, uint8_t length)
@@ -200,7 +216,9 @@ void ble_data_received_handler(const uint8_t *p_data, uint8_t length)
 			{	
 				u8_selected_pattern = p_data[1];
 				u32_pattern_control_state = 0;
+				#ifdef DEBUG
 				NRF_LOG_INFO("New pattern: %i", u8_selected_pattern);
+				#endif
 			}
 		break;
 		case 0x3: // select master / slave mode
@@ -209,14 +227,18 @@ void ble_data_received_handler(const uint8_t *p_data, uint8_t length)
 				slave_scan_stop();
 				functional_state = MASTER;
 				master_advertising_init();
+				#ifdef DEBUG
 				NRF_LOG_INFO("Acting as Master.");
+				#endif
 			}
 			else
 			{
 				master_advertising_stop();
 				functional_state = SLAVE;
 				slave_scan_init(slave_update_handler);
+				#ifdef DEBUG
 				NRF_LOG_INFO("Acting as Slave.");
+				#endif
 			}
 			break;
 		case 0x4: // set patterncontrol value (for color mode)
@@ -234,7 +256,9 @@ void ble_data_received_handler(const uint8_t *p_data, uint8_t length)
 */
 void ble_adv_timeout_handler(void)
 {
+	#ifdef DEBUG
 	NRF_LOG_INFO("Advertising Timeout.");
+	#endif
 	application_state = IDLE;
 }
 
@@ -258,7 +282,9 @@ void ble_connection_handler(uint8_t state)
 			master_advertising_stop();
 			functional_state = SLAVE;
 			slave_scan_init(slave_update_handler);
+			#ifdef DEBUG
 			NRF_LOG_INFO("Acting as Slave.");
+			#endif
 		}
 	}
 }
@@ -407,7 +433,9 @@ void goto_sleep(void)
 	slave_scan_stop();
 	bluetooth_disable();
 	
+	#ifdef DEBUG
 	NRF_LOG_INFO("Going to sleep...");
+	#endif
 	nrf_delay_ms(200);
 	
 	nfc_enter_wakeup_sleep_mode();
@@ -417,7 +445,9 @@ void nfc_read_handler(void)
 {
 	if(application_state == IDLE)
 	{
+		#ifdef DEBUG
 		NRF_LOG_INFO("Start Advertising by NFC");
+		#endif
 		bluetooth_start_advertising();
 		application_state = ADVERTISING;
 	}
