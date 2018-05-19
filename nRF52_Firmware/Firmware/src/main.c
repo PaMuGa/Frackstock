@@ -129,6 +129,8 @@ int main()
 				leds_deactivate();
 			} else
 			{
+				NRF_LOG_INFO("Battery: %i, Voltage [mV]: %i", u32_charge, u16_battery_voltage);
+				
 				// disable LEDs if charge is below 5 percent
 				if(u32_charge <= 5)
 				{
