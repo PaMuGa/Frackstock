@@ -240,8 +240,11 @@ void ble_data_received_handler(const uint8_t *p_data, uint8_t length)
 		case 0x4: // set patterncontrol value (for color mode)
 			if(functional_state == MASTER)
 			{
-				u32_pattern_control_state = p_data[1] << 16 || p_data[2] << 8 || p_data[3];
 				u8_selected_pattern = 0;
+				uint32_t u32_red = p_data[1];
+				uint32_t u32_green = p_data[2];
+				uint32_t u32_blue = p_data[3];
+				u32_pattern_control_state = u32_red << 16 | u32_green << 8 | u32_blue;
 			}
 		break;
 	}
