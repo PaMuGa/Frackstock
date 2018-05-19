@@ -112,6 +112,7 @@ int main()
 		if(u16_slow_process_counter == 0)
 		{
 			u32_charge = stns01_get_charge();
+			u16_battery_voltage = stns01_get_battery_voltage();
 		}
 		
 		// check battery state and enable / disable leds approx. every second
@@ -121,7 +122,6 @@ int main()
 			
 			if(u8_charging_enabled)
 			{
-				u16_battery_voltage = stns01_get_battery_voltage();
 				NRF_LOG_INFO("Charging... Battery: %i, Voltage [mV]: %i", u32_charge, u16_battery_voltage);
 				patterncontrol_update(CHARGING, u8_led_length, &u32_charge);
 				leds_activate();
@@ -145,8 +145,9 @@ int main()
 			{
 				uint8_t u8_bat_buf[] = {0x01, (uint8_t)u32_charge, (uint8_t)functional_state, u8_selected_pattern,
 										u32_pattern_control_state >> 24, (u32_pattern_control_state >> 16) & 0xFF,
-										(u32_pattern_control_state >> 8) & 0xFF, u32_pattern_control_state & 0xFF};
-				bluetooth_send(u8_bat_buf,3);
+										(u32_pattern_control_state >> 8) & 0xFF, u32_pattern_control_state & 0xFF,
+										u16_battery_voltage >> 8, u16_battery_voltage & 0xFF};
+				bluetooth_send(u8_bat_buf,10);
 			}
 			
 			if(functional_state == SLAVE && application_state == IDLE && !u8_charging_enabled)
