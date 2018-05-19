@@ -52,20 +52,44 @@ uint8_t stns01_get_charging_state(void)
 }
 
 
+static uint16_t u16_filtered_voltage_x4;
+static nrf_saadc_value_t adc_value[4];
+static uint8_t u8_adc_index = 0;
+
+static uint8_t u8_first_measurement = 1;
+
 uint8_t stns01_get_charge(void)
 {
-	//charge_measured_callback = callback;
-	static nrf_saadc_value_t adc_value[4];
-	static uint8_t u8_adc_index = 0;
-	
 	//nrf_drv_saadc_buffer_convert(m_buffer_pool[0], SAMPLES_IN_BUFFER);
 	nrf_drv_saadc_sample_convert(0, &adc_value[u8_adc_index]);
 	u8_adc_index++;
 	u8_adc_index %= 4;
 	
-	uint16_t u16_filtered_value = stns01_voltage_iir(adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3]);
+	if(u8_first_measurement)
+	{
+		adc_value[1] = adc_value[0];
+		adc_value[2] = adc_value[0];
+		adc_value[3] = adc_value[0];
+		
+		u8_first_measurement = 0;
+	}
 	
-	return u8_calculate_charge_percent(u16_filtered_value);
+	u16_filtered_voltage_x4 = stns01_voltage_iir(adc_value[0] + adc_value[1] + adc_value[2] + adc_value[3]);
+	
+	return u8_calculate_charge_percent(u16_filtered_voltage_x4);
+}
+
+uint16_t stns01_get_battery_voltage(void)
+{
+	// voltageinput is 12bit, 4096 = 5.2364V at AIN0, 1.278mV per bit
+	uint32_t u32_calc_var = u16_filtered_voltage_x4;
+	
+	u32_calc_var *= 1278;
+	u32_calc_var /= 1000;
+	
+	// now u32_calc_var contains the voltage in mV
+	
+	return u32_calc_var;
 }
 
 uint16_t stns01_voltage_iir(uint16_t u16_new_value)
@@ -85,29 +109,16 @@ uint16_t stns01_voltage_iir(uint16_t u16_new_value)
 
 uint8_t u8_calculate_charge_percent(uint16_t u16_voltage_x4)
 {
-	// voltageinput is 12bit, 4096 = 3.6V at AIN0
-	uint32_t u32_calc_var = u16_voltage_x4;
+	uint16_t u16_battery_mV = stns01_get_battery_voltage();
 	
-	// invert resistance divisor
-	u32_calc_var = u32_calc_var * 32;
-	u32_calc_var = u32_calc_var / 22;
+	// simple algorithm, linear: 100% = 4V, 17% 3.5V, 0% = 3V
 	
-	// now, 4096 equals 5.2364V, 1 bit equals 1.278mV
-	
-	// simple algorithm, linear: 100% = 4V, 20% 3.5V, 0% = 3V
-	// 4V   : 4549
-	// 3.5V : 3979
-	// 3V   : 3752
-	
-	if(stns01_get_charging_state())	// charging offset (0.2V -> 4.242) mit Toleranz ca. 300
-		u32_calc_var -= 300; // 276
-	
-	if(u32_calc_var >= 4546)
+	if(u16_battery_mV >= 4000)
 		return 100;
-	else if(u32_calc_var >= 3979)
-		return (u32_calc_var - 3979) / 7 + 20;
-	else if(u32_calc_var >= 3752)
-		return (u32_calc_var - 3752) / 20;
+	else if(u16_battery_mV >= 3500)
+		return (u16_battery_mV - 3500) / 6 + 17;
+	else if(u16_battery_mV >= 3000)
+		return (u16_battery_mV - 3752) / 29;
 	else
 		return 0;
 }

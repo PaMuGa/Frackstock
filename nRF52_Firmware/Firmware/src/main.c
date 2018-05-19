@@ -18,7 +18,7 @@
 
 #define N_LEDS								60		// maximum number of leds
 #define SLOW_PROCESS_EXECUTION_TIME			100		// ms
-#define EXTREM_SLOW_PROCESS_EXECUTION_TIME	1000 	// ms
+#define EXTREM_SLOW_PROCESS_EXECUTION_TIME	10000 	// ms
 #define SLAVE_TIMEOUT_SLEEP					60		// seconds
 
 static void log_init(void);
@@ -64,9 +64,12 @@ uint8_t u8_charging_enabled;			// 1 if the battery is beeing charged
 uint16_t u16_slow_process_counter = 0;
 uint16_t u16_extrem_slow_process_counter = 0;
 uint16_t u16_slave_timeout_timer = SLAVE_TIMEOUT_SLEEP;
+uint16_t u16_battery_voltage;
 
 int main()
 {
+	nrf_gpio_cfg(21, NRF_GPIO_PIN_DIR_INPUT, NRF_GPIO_PIN_INPUT_DISCONNECT, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_H0H1, NRF_GPIO_PIN_NOSENSE);
+	
 	// init log
 	log_init();
 	NRF_LOG_INFO("Startup...");
@@ -118,10 +121,11 @@ int main()
 			
 			if(u8_charging_enabled)
 			{
-				NRF_LOG_INFO("Charging... Battery: %i", u32_charge);
-				leds_activate();
+				u16_battery_voltage = stns01_get_battery_voltage();
+				NRF_LOG_INFO("Charging... Battery: %i, Voltage [mV]: %i", u32_charge, u16_battery_voltage);
 				patterncontrol_update(CHARGING, u8_led_length, &u32_charge);
-				nrf_delay_ms(100);
+				leds_activate();
+				nrf_delay_ms(50);
 				leds_deactivate();
 			} else
 			{
@@ -153,6 +157,11 @@ int main()
 				{
 					goto_sleep();
 				}
+			}
+			
+			if(u8_charging_enabled)
+			{
+				u16_slave_timeout_timer = SLAVE_TIMEOUT_SLEEP;
 			}
 		}
 	}
