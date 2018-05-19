@@ -19,7 +19,7 @@
 #define N_LEDS								60		// maximum number of leds
 #define SLOW_PROCESS_EXECUTION_TIME			100		// ms
 #define EXTREM_SLOW_PROCESS_EXECUTION_TIME	10000 	// ms
-#define SLAVE_TIMEOUT_SLEEP					60		// seconds
+#define SLAVE_TIMEOUT_SLEEP					6  		// * EXTREM_SLOW_PROCESS_EXECUTION_TIME seconds
 
 static void log_init(void);
 void gyro_data_handler(LIS3DE_REGISTER_t, uint8_t);
@@ -61,8 +61,8 @@ uint8_t u8_selected_pattern = 0;		// default pattern is zero
 uint32_t u32_charge;					// actual battery charge in percent
 uint8_t u8_charging_enabled;			// 1 if the battery is beeing charged
 
-uint16_t u16_slow_process_counter = 0;
-uint16_t u16_extrem_slow_process_counter = 0;
+uint16_t u16_slow_process_counter = SLOW_PROCESS_EXECUTION_TIME - 1;
+uint16_t u16_extrem_slow_process_counter = EXTREM_SLOW_PROCESS_EXECUTION_TIME - 1;
 uint16_t u16_slave_timeout_timer = SLAVE_TIMEOUT_SLEEP;
 uint16_t u16_battery_voltage;
 
@@ -121,9 +121,19 @@ int main()
 		{
 			u32_charge = stns01_get_charge();
 			u16_battery_voltage = stns01_get_battery_voltage();
+			
+			// send application information to the smartphone if connected
+			if(application_state == CONNECTED)
+			{
+				uint8_t u8_bat_buf[] = {0x01, (uint8_t)u32_charge, (uint8_t)functional_state, u8_selected_pattern,
+										u32_pattern_control_state >> 24, (u32_pattern_control_state >> 16) & 0xFF,
+										(u32_pattern_control_state >> 8) & 0xFF, u32_pattern_control_state & 0xFF,
+										u16_battery_voltage >> 8, u16_battery_voltage & 0xFF};
+				bluetooth_send(u8_bat_buf, 10);
+			}
 		}
 		
-		// check battery state and enable / disable leds approx. every second
+		// check battery state and enable / disable leds approx. every 10 seconds
 		if(u16_extrem_slow_process_counter == 0)
 		{
 			u8_charging_enabled = stns01_get_charging_state();
@@ -156,16 +166,7 @@ int main()
 				}
 			}
 			
-			// send application information to the smartphone if connected
-			if(application_state == CONNECTED)
-			{
-				uint8_t u8_bat_buf[] = {0x01, (uint8_t)u32_charge, (uint8_t)functional_state, u8_selected_pattern,
-										u32_pattern_control_state >> 24, (u32_pattern_control_state >> 16) & 0xFF,
-										(u32_pattern_control_state >> 8) & 0xFF, u32_pattern_control_state & 0xFF,
-										u16_battery_voltage >> 8, u16_battery_voltage & 0xFF};
-				bluetooth_send(u8_bat_buf,10);
-			}
-			
+			// goto sleep mode if no master is active and the smartphone is disconnected
 			if(functional_state == SLAVE && application_state == IDLE && !u8_charging_enabled)
 			{
 				u16_slave_timeout_timer--;
@@ -174,11 +175,6 @@ int main()
 				{
 					goto_sleep();
 				}
-			}
-			
-			if(u8_charging_enabled)
-			{
-				u16_slave_timeout_timer = SLAVE_TIMEOUT_SLEEP;
 			}
 		}
 	}
