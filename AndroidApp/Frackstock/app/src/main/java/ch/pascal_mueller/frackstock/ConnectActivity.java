@@ -261,7 +261,7 @@ public class ConnectActivity extends AppCompatActivity {
 
     private final BroadcastReceiver UARTStatusChangeReceiver = new BroadcastReceiver() {
 
-        public void onReceive(Context context, Intent intent) {
+        public void onReceive(Context context, final Intent intent) {
             String action = intent.getAction();
 
             final Intent mIntent = intent;
@@ -277,8 +277,8 @@ public class ConnectActivity extends AppCompatActivity {
                             }
 
                             public void onFinish() {
-                                setLayoutControl();
-
+                                //setLayoutControl();
+                                startActivity(new Intent(getBaseContext(), MainControlActivity.class));
 
                                 //setContentView(R.layout.activity_control);
 
@@ -403,4 +403,19 @@ public class ConnectActivity extends AppCompatActivity {
             uartService = null;
         }
     };
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        //Log.d(TAG, "onDestroy()");
+
+        try {
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(UARTStatusChangeReceiver);
+        } catch (Exception ignore) {
+            //Log.e(TAG, ignore.toString());
+        }
+        unbindService(mServiceConnection);
+        uartService.stopSelf();
+        uartService= null;
+    }
 }

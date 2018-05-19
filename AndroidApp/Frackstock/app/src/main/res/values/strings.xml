@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">Frackstock</string>
+    <string name="title_maincontrolactivity">Frackstock</string>
+    <string name="tab_text_1">Config</string>
+    <string name="tab_text_2">Patterns</string>
+    <string name="tab_text_3">Color</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="section_format">Hello World from section: %1$d</string>
+
+    <string name="battery">Battery: -</string>
+    <string name="mastermode">Enable master mode</string>
+    <string name="pattern">Actual pattern: </string>
 </resources>
