@@ -249,12 +249,35 @@ void set_pattern_shift(led_color_t* pattern_buffer,
 	uint8_t u8_pattern_length,
 	uint32_t *u32_control_state)
 {
+    static const uint8_t shift_length=10;
+    static uint16_t random_color[3];
+
+    
      for(uint16_t i = 0; i < u8_pattern_length; i++)
             {
-                pattern_buffer[i].u8_red = 0;
+                pattern_buffer[i].u8_red   = 0;
                 pattern_buffer[i].u8_green = 0;
-                pattern_buffer[i].u8_blue = 0;
+                pattern_buffer[i].u8_blue  = 0;
 			}
+       // set pattern to one
+    for(uint16_t i = 0; i < shift_length; i++)
+    {
+        //end of led pattern
+        pattern_buffer[u8_pattern_length-shift_length-*u32_control_state+i].u8_red    = 10;
+        pattern_buffer[u8_pattern_length-shift_length-*u32_control_state+i].u8_green  = BRIGHTNESS/2;
+        pattern_buffer[u8_pattern_length-shift_length-*u32_control_state+i].u8_blue   = BRIGHTNESS;
+        //begin of led Pattern
+        pattern_buffer[*u32_control_state+i].u8_red    = 10;
+        pattern_buffer[*u32_control_state+i].u8_green  = BRIGHTNESS/2;
+        pattern_buffer[*u32_control_state+i].u8_blue   = BRIGHTNESS;
+    }          
+    //reset counter
+    if(*u32_control_state>=u8_pattern_length) {
+        *u32_control_state=0;
+            /*get random color from modulo counter
+    @ TODO implement a real random counter*/
+    //HSVtoRGB((*u32_control_state*2)%359,80,BRIGHTNESS, random_color);
+    }
 }
 
 void set_pattern_colorfull(led_color_t* pattern_buffer,
