@@ -107,7 +107,7 @@ public class ConfigurationFragment extends Fragment implements DataExchangeInter
                 return "Color";
             case 1:
                 return "Rainbow";
-            case  2:
+            case 2:
                 return "Flash";
             case 3:
                 return "Flashwhite";
@@ -116,7 +116,9 @@ public class ConfigurationFragment extends Fragment implements DataExchangeInter
             case 5:
                 return "Purple Rain";
             case 6:
-                return "Colorful";
+                return "Colorfull";
+            case 7:
+                return "Sparkling Red";
             default:
                 return "";
         }

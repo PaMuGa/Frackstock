@@ -50,6 +50,24 @@
                 android:scaleType="fitXY"
                 android:src="@drawable/colorful" />
 
+            <ImageButton
+                android:id="@+id/iBRainbow"
+                android:layout_width="match_parent"
+                android:layout_height="160dp"
+                android:background="@null"
+                android:elevation="0dp"
+                android:scaleType="fitXY"
+                android:src="@drawable/rainbow" />
+
+            <ImageButton
+                android:id="@+id/iBSparklingRed"
+                android:layout_width="match_parent"
+                android:layout_height="160dp"
+                android:background="@null"
+                android:elevation="0dp"
+                android:scaleType="fitXY"
+                android:src="@drawable/sparkling_red" />
+
         </LinearLayout>
     </ScrollView>
 </FrameLayout>

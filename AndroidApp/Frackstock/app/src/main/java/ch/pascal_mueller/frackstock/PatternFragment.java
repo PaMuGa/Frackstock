@@ -23,6 +23,8 @@ public class PatternFragment extends Fragment implements DataExchangeInteraction
     private ImageButton iBWhiteFlash = null;
     private ImageButton iBColorFlash = null;
     private ImageButton iBColorful = null;
+    private ImageButton iBRainbow = null;
+    private ImageButton iBSparklingRed = null;
 
     public PatternFragment() {
         // Required empty public constructor
@@ -48,6 +50,8 @@ public class PatternFragment extends Fragment implements DataExchangeInteraction
         iBWhiteFlash = view.findViewById(R.id.iBWhiteFlash);
         iBColorFlash = view.findViewById(R.id.iBColorFlash);
         iBColorful = view.findViewById(R.id.iBColorful);
+        iBRainbow = view.findViewById(R.id.iBRainbow);
+        iBSparklingRed = view.findViewById(R.id.iBSparklingRed);
 
         iBPurpleRain.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -82,6 +86,16 @@ public class PatternFragment extends Fragment implements DataExchangeInteraction
         iBColorful.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                byte[] config_pattern = {0x02, 0x06};
+                if(mListener != null) {
+                    mListener.onDataSend(config_pattern);
+                }
+            }
+        });
+
+        iBRainbow.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
                 byte[] config_pattern = {0x02, 0x01};
                 if(mListener != null) {
                     mListener.onDataSend(config_pattern);
@@ -89,6 +103,15 @@ public class PatternFragment extends Fragment implements DataExchangeInteraction
             }
         });
 
+        iBSparklingRed.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                byte[] config_pattern = {0x02, 0x07};
+                if(mListener != null) {
+                    mListener.onDataSend(config_pattern);
+                }
+            }
+        });
 
 
         return view;
