@@ -38,7 +38,8 @@ typedef enum {
     FLASHWHITE,
 	SHIFT,
 	PURPLE_RAIN,
-	COLORFULL
+	COLORFULL,
+	SPARKLING_RED
 } pattern_t;
 
 /**

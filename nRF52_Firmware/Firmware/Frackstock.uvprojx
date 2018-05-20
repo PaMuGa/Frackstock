@@ -422,6 +422,11 @@
               <FileType>5</FileType>
               <FilePath>.\inc\custom_board.h</FilePath>
             </File>
+            <File>
+              <FileName>boardsupport.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\boardsupport.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

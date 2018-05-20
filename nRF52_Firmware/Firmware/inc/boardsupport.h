@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Pascal MÃ¼ller
+* Copyright (c) 2018 Pascal Müller
 * 
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -20,21 +20,22 @@
 * USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef __stns01_h
-#define __stns01_h
+#ifndef __boardsupport_h
+#define __boardsupport_h
 
-#include <stdint.h>
-
-typedef void (*stns01_charge_measured_handler_t)(uint8_t);
-
-void stns01_init(void);
-uint8_t stns01_get_charge(void);
-uint8_t stns01_get_charging_state(void);
+#include "custom_board.h"
+#include "nrf52.h"
 
 /**
-* @brief Calculates the battery voltage in mV based on the measurements
-*        of stns01_get_charge().
+* @brief Wakes up the controller on high to low transition on batter charging
+*        state gpio on plugging in the charger.
 */
-uint16_t stns01_get_battery_voltage(void);
+void boardsupport_set_wakeup_gpio(void);
 
-#endif /* __stns01_h */
+
+/**
+* @brief Returns '1' if the reason of reset (wakeup) is NFC.
+*/
+uint8_t boardsupport_is_resetreason_nfc(void);
+
+#endif /* __boardsupport_h */

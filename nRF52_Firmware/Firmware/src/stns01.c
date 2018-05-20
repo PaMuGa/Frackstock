@@ -1,3 +1,25 @@
+/*
+* Copyright (c) 2018 Pascal Müller
+* 
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+* OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+* DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+* OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+* USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
 #include "stns01.h"
 
 #include "custom_board.h"
@@ -18,7 +40,7 @@ void stns01_init(void)
 	// config pin charge_enable and disable charging on default
 	//nrf_gpio_cfg_output(PIN_CHG);
 	//stns01_enable_disable_charging(0);
-	nrf_gpio_cfg(PIN_CHG, NRF_GPIO_PIN_DIR_INPUT, NRF_GPIO_PIN_INPUT_CONNECT, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_S0S1, NRF_GPIO_PIN_NOSENSE);
+	nrf_gpio_cfg(PIN_CHG, NRF_GPIO_PIN_DIR_INPUT, NRF_GPIO_PIN_INPUT_CONNECT, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_S0S1, NRF_GPIO_PIN_SENSE_LOW);
 	
 	nrf_gpio_cfg_output(PIN_V_BAT_EN);
 	nrf_gpio_pin_clear(PIN_V_BAT_EN);
@@ -113,14 +135,21 @@ uint8_t u8_calculate_charge_percent(uint16_t u16_voltage_x4)
 	
 	// simple algorithm, linear: 100% = 4V, 17% 3.5V, 0% = 3V
 	
-	if(u16_battery_mV >= 4000)
+	/*if(u16_battery_mV >= 4000)
 		return 100;
 	else if(u16_battery_mV >= 3500)
 		return (u16_battery_mV - 3500) / 6 + 17;
 	else if(u16_battery_mV >= 3000)
 		return (u16_battery_mV - 3752) / 29;
 	else
-		return 0;
+		return 0;*/
+	
+	if(u16_battery_mV >= 4000)
+		return 100;
+	else if(u16_battery_mV > 2700)
+		return (u16_battery_mV - 2700) / 13;
+	else return 0;
+	
 }
 
 

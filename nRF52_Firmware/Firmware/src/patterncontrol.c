@@ -22,17 +22,19 @@
 
 #include "patterncontrol.h"
 #include "leds.h"
+#include "stdlib.h"
 
 void set_pattern_ble_connect(led_color_t*, uint8_t, uint32_t);
 void set_pattern_ble_connected(led_color_t*, uint8_t, uint32_t);
 void set_pattern_charging(led_color_t*, uint8_t, uint32_t*);
 void set_pattern_color(led_color_t*, uint8_t, uint32_t*);
-//void set_pattern_rainbow(led_color_t*,uint8_t,uint32_t*);
+void set_pattern_rainbow(led_color_t*,uint8_t,uint32_t*);
 void set_pattern_flash(led_color_t*, uint8_t, uint32_t*);
 void set_pattern_flashwhite(led_color_t*,uint8_t, uint32_t*);
 void set_pattern_purple_rain(led_color_t*, uint8_t, uint32_t *);
 void set_pattern_shift(led_color_t*, uint8_t, uint32_t *);
 void set_pattern_colorfull(led_color_t*, uint8_t, uint32_t *);
+void set_pattern_sparkling_red(led_color_t*, uint8_t, uint32_t *);
 void HSVtoRGB(uint16_t h, uint16_t s, uint16_t v, uint16_t dest[3]);
 void reset_pattern(led_color_t* pattern_buffer);
 
@@ -55,9 +57,9 @@ void patterncontrol_update(pattern_t pattern,
 		case COLOR:
 			set_pattern_color(led_color, u8_pattern_length, u32_control_state);
 			break;
-//		case RAINBOW:     
-//            set_pattern_rainbow(led_color, u8_pattern_length, u32_control_state);
-//            break;
+		case RAINBOW:     
+            set_pattern_rainbow(led_color, u8_pattern_length, u32_control_state);
+            break;
         case FLASH:
            set_pattern_flash(led_color, u8_pattern_length, u32_control_state);
 			break;
@@ -72,6 +74,9 @@ void patterncontrol_update(pattern_t pattern,
 			break;
 		case COLORFULL:
 			set_pattern_colorfull(led_color, u8_pattern_length, u32_control_state);
+			break;
+		case SPARKLING_RED:
+			set_pattern_sparkling_red(led_color, u8_pattern_length, u32_control_state);
 			break;
 		case RESET:
 		default:	// white
@@ -177,23 +182,40 @@ void set_pattern_rainbow(led_color_t* pattern_buffer,
 	uint8_t u8_pattern_length,
 	uint32_t *u32_control_state)
 {
-    static uint16_t rgb[3];
-    static float circle;
+	// color
+    uint16_t rgb[3];
+    //static float circle;
 	
-    for(uint16_t i = 0; i < MAX_N_LEDS; i++)
-    {
-        //scale circle with counter between 0 to 1
-        circle= i*(float)(360/MAX_N_LEDS)*(float)*u32_control_state/1000;
-        HSVtoRGB((uint16_t)circle,80,40, rgb);
-        
-        pattern_buffer[i].u8_red = rgb[0];
+	// reset control state, control state determines the start of the rainbow
+	*u32_control_state %= 1440;
+	
+	for(uint16_t i = 0; i < u8_pattern_length; i++)
+	{
+		uint16_t u16_hue = (*u32_control_state >> 2); // start color
+		u16_hue += i * 360 / 50; // led offset
+		u16_hue %= 360; // overflow
+		
+		HSVtoRGB(u16_hue, 80, 40, rgb);
+		
+		pattern_buffer[i].u8_red = rgb[0];
         pattern_buffer[i].u8_green = rgb[1];
         pattern_buffer[i].u8_blue = rgb[2];
-    }
-    //reset counter
-    if(*u32_control_state>=1000) {
-        *u32_control_state=0;
-    }
+	}
+	
+//    for(uint16_t i = 0; i < MAX_N_LEDS; i++)
+//    {
+//        //scale circle with counter between 0 to 1
+//        circle= i*(float)(360/MAX_N_LEDS)*(float)*u32_control_state/1000;
+//        HSVtoRGB((uint16_t)circle,80,40, rgb);
+//        
+//        pattern_buffer[i].u8_red = rgb[0];
+//        pattern_buffer[i].u8_green = rgb[1];
+//        pattern_buffer[i].u8_blue = rgb[2];
+//    }
+//    //reset counter
+//    if(*u32_control_state>=1000) {
+//        *u32_control_state=0;
+//    }
 }
 
 void set_pattern_flash(led_color_t* pattern_buffer,
@@ -249,43 +271,53 @@ void set_pattern_shift(led_color_t* pattern_buffer,
 	uint8_t u8_pattern_length,
 	uint32_t *u32_control_state)
 {
-     for(uint16_t i = 0; i < u8_pattern_length; i++)
-            {
-                pattern_buffer[i].u8_red = 0;
-                pattern_buffer[i].u8_green = 0;
-                pattern_buffer[i].u8_blue = 0;
-			}
+    for(uint16_t i = 0; i < u8_pattern_length; i++)
+    {
+		pattern_buffer[i].u8_red = 0;
+        pattern_buffer[i].u8_green = 0;
+        pattern_buffer[i].u8_blue = 0;
+	}
 }
 
 void set_pattern_colorfull(led_color_t* pattern_buffer,
 	uint8_t u8_pattern_length,
 	uint32_t *u32_control_state)
 {
-    //
+	// Color
     static uint16_t rgb[3];
-    //convert counter to rgb
+	
+	// reset counter
+    *u32_control_state %= 1440;
+	
+    // Calculate color based on control state
     HSVtoRGB(*u32_control_state/4,80,20, rgb);
 
-     for(uint16_t i = 0; i < u8_pattern_length; i++)
-            {
-
-                pattern_buffer[i].u8_red = rgb[0];
-                pattern_buffer[i].u8_green = rgb[1];
-                pattern_buffer[i].u8_blue = rgb[2];
-			}
-    //reset counter
-    if(*u32_control_state>1440) {
-        *u32_control_state=0;
-    }
+    for(uint16_t i = 0; i < u8_pattern_length; i++)
+    {
+         pattern_buffer[i].u8_red = rgb[0];
+         pattern_buffer[i].u8_green = rgb[1];
+         pattern_buffer[i].u8_blue = rgb[2];
+	}
 }
 
-int32_t abs(int32_t x)
+/**
+* @brief Randomly choosen LED lights up red
+*/
+void set_pattern_sparkling_red(led_color_t* pattern_buffer,
+	uint8_t u8_pattern_length,
+	uint32_t *u32_control_state)
 {
-	if(x < 0)
-		return -x;
-	else
-		return x;
+	// clear all
+	reset_pattern(pattern_buffer);
+	
+	// choose random led
+	uint16_t u16_led = rand() % u8_pattern_length;
+	
+	pattern_buffer[u16_led] = LED_COLOR_RED;
 }
+
+
+
 
 /** ***************************************************************************
  * @brief conversion HSV to RGB with fixed point scale 100^2 conversion
@@ -347,6 +379,5 @@ void HSVtoRGB(uint16_t h, uint16_t s, uint16_t v, uint16_t dest[3])
 	dest[1]= (rgb_s[1]+m)*255/(scale*scale);
 	dest[2]= (rgb_s[2]+m)*255/(scale*scale);
 }
-
 
 

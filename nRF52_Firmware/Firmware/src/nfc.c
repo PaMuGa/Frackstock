@@ -33,6 +33,9 @@
 #include "bsp.h"
 #include "bsp_nfc.h"
 
+#include "nrf_sdh.h"
+#include "nrf_sdh_soc.h"
+
 // ch.pascal_mueller.frackstock
 static const uint8_t android_package_name[] = {'c', 'h', '.', 'p', 'a', 's', 'c', 'a', 'l', '_',
                                                'm', 'u', 'e', 'l', 'l', 'e', 'r', '.', 'f', 'r',
@@ -62,6 +65,10 @@ void nfc_init_app_start(nfc_read_handler_t nfc_read_handler)
     uint32_t err_code;
 	
 	p_nfc_read_handler = nfc_read_handler;
+	
+	NRF_NFCT->TASKS_DISABLE = 1;
+	nrf_delay_ms(1);
+	
 
     /* Set up NFC */
     err_code = nfc_t2t_setup(nfc_callback, NULL);
@@ -90,11 +97,16 @@ ret_code_t err_code = NRF_SUCCESS;
 void nfc_enter_wakeup_sleep_mode(void)
 {
 	err_code = nfc_t2t_emulation_stop();;
-	err_code = bsp_nfc_sleep_mode_prepare();
+	//err_code = bsp_nfc_sleep_mode_prepare();
     APP_ERROR_CHECK(err_code);
 	
-	nrf_delay_ms(100);
+	NRF_NFCT->TASKS_SENSE = 1;
+	
+	nrf_delay_ms(50);
+	
     // Enter System OFF mode.
     NRF_POWER->SYSTEMOFF = 1;
+	
+	
 }
 

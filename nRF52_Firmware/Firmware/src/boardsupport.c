@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018 Pascal MÃ¼ller
+* Copyright (c) 2018 Pascal Müller
 * 
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -20,21 +20,19 @@
 * USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef __stns01_h
-#define __stns01_h
+#include "boardsupport.h"
+#include "nrf_gpio.h"
 
-#include <stdint.h>
+void boardsupport_set_wakeup_gpio(void)
+{
+	nrf_gpio_cfg_sense_input(PIN_CHG, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
+}
 
-typedef void (*stns01_charge_measured_handler_t)(uint8_t);
 
-void stns01_init(void);
-uint8_t stns01_get_charge(void);
-uint8_t stns01_get_charging_state(void);
-
-/**
-* @brief Calculates the battery voltage in mV based on the measurements
-*        of stns01_get_charge().
-*/
-uint16_t stns01_get_battery_voltage(void);
-
-#endif /* __stns01_h */
+uint8_t boardsupport_is_resetreason_nfc(void)
+{
+	if(NRF_POWER->RESETREAS & POWER_RESETREAS_NFC_Msk)
+		return 1;
+	else
+		return 0;
+}
