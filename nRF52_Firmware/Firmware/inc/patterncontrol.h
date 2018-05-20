@@ -36,6 +36,7 @@ typedef enum {
 	RAINBOW,
     FLASH,
     FLASHWHITE,
+    FLASHCOLOR,
 	SHIFT,
 	PURPLE_RAIN,
 	COLORFULL
