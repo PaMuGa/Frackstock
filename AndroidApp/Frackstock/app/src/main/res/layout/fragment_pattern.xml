@@ -68,6 +68,24 @@
                 android:scaleType="fitXY"
                 android:src="@drawable/sparkling_red" />
 
+            <ImageButton
+                android:id="@+id/iBShift"
+                android:layout_width="match_parent"
+                android:layout_height="160dp"
+                android:background="@null"
+                android:elevation="0dp"
+                android:scaleType="fitXY"
+                android:src="@drawable/shift" />
+
+            <ImageButton
+                android:id="@+id/iBFlashcolor"
+                android:layout_width="match_parent"
+                android:layout_height="160dp"
+                android:background="@null"
+                android:elevation="0dp"
+                android:scaleType="fitXY"
+                android:src="@drawable/flashcolor" />
+
         </LinearLayout>
     </ScrollView>
 </FrameLayout>
