@@ -95,6 +95,10 @@ static void ble_stack_init(void);
 void gatt_init(void);
 static void advertising_init(void);
 
+#define MAIN_MASTER_TIMEOUT_ADVERTS		50	// Frackstock Advertisings
+static uint8_t main_master_address[] = { 0xD2, 0x29, 0xD8, 0x04, 0x47, 0x16 };
+static uint8_t u8_main_master_timout_timer = 0;
+
 void bluetooth_init(ble_data_received_handler_t data_received_handler,
 					ble_adv_timeout_handler_t adv_timeout_handler,
 					ble_connection_handler_t connection_handler)
@@ -303,13 +307,33 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 						adv_report.data[4 + MASTER_BEACON_OFFSET] == 0x89 &&
 						adv_report.data[5 + MASTER_BEACON_OFFSET] == 0xB6)
 					{
-						u8_selected_pattern = adv_report.data[7 + MASTER_BEACON_OFFSET];
-						u32_control_state = adv_report.data[8 + MASTER_BEACON_OFFSET] << 24 |
-							adv_report.data[9 + MASTER_BEACON_OFFSET] << 16 |
-							adv_report.data[10 + MASTER_BEACON_OFFSET] << 8 |
-							adv_report.data[11 + MASTER_BEACON_OFFSET];
+						// main master is preferenced if more than one master is available
+						uint8_t u8_main_master = 0;
+						if(	adv_report.peer_addr.addr[0] == main_master_address[0] && 
+							adv_report.peer_addr.addr[1] == main_master_address[1] && 
+							adv_report.peer_addr.addr[2] == main_master_address[2] && 
+							adv_report.peer_addr.addr[3] == main_master_address[3] && 
+							adv_report.peer_addr.addr[4] == main_master_address[4] && 
+							adv_report.peer_addr.addr[5] == main_master_address[5])
+						{
+							u8_main_master = 1;
+							u8_main_master_timout_timer = MAIN_MASTER_TIMEOUT_ADVERTS;
+						}
 						
-						p_slave_received_handler(u8_selected_pattern, u32_control_state);
+						if(u8_main_master_timout_timer > 0) u8_main_master_timout_timer--;
+						
+						// check if main master or main master not in range
+						if(u8_main_master_timout_timer == 0 || u8_main_master)
+						{
+							u8_selected_pattern = adv_report.data[7 + MASTER_BEACON_OFFSET];
+							u32_control_state = adv_report.data[8 + MASTER_BEACON_OFFSET] << 24 |
+								adv_report.data[9 + MASTER_BEACON_OFFSET] << 16 |
+								adv_report.data[10 + MASTER_BEACON_OFFSET] << 8 |
+								adv_report.data[11 + MASTER_BEACON_OFFSET];
+							
+							
+							p_slave_received_handler(u8_selected_pattern, u32_control_state);
+						}
 					}
 				}
 			}
