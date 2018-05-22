@@ -49,7 +49,7 @@
 
 #define APP_BLE_OBSERVER_PRIO       3
 
-#define APP_ADV_INTERVAL			800							// *0.625ms => 500ms
+#define APP_ADV_INTERVAL			80							// *0.625ms => 500ms
 #define APP_ADV_TIMEOUT				180							// seconds
 
 #define MASTER_ADV_INTERVAL			320							// *0.625ms => 200ms
